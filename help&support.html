@@ -1,0 +1,459 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HOP - Help & Support</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: #f8f7f0;
+      color: #393441;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 430px;
+      min-height: 100dvh;
+      margin: auto;
+      padding: 25px 22px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      color: #625979;
+    }
+
+    .help-icon {
+      width: 25px;
+      height: 25px;
+      border: 2px solid #625979;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: #625979;
+    }
+
+    .back {
+      background: none;
+      border: none;
+      font-size: 25px;
+      color: #625979;
+      cursor: pointer;
+    }
+
+    .logo {
+      font-size: 23px;
+      font-weight: bold;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    
+  body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #f8f7ef;
+    color: #393441;
+  }
+
+     .app {
+      width: calc(100% - 28px);
+      max-width: 430px;
+      min-height: calc(100dvh - 40px);
+      margin: 20px auto;
+      padding: 25px 22px;
+      background: linear-gradient(
+        145deg,
+        #e9e3ed,
+        #f1eaf1
+      );
+      border-radius: 28px;
+      box-shadow: 0 5px 20px rgba(80, 65, 100, 0.08);
+    }
+
+    .rabbit {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 5px auto 12px;
+    }
+
+    .rabbit img {
+      width: 190px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: 27px;
+      margin: 10px 0;
+    }
+
+    .subtitle {
+      color: #88818d;
+      font-size: 15px;
+    }
+
+    .search {
+      width: 100%;
+      padding: 17px;
+      border: none;
+      border-radius: 15px;
+      background: white;
+      font-size: 15px;
+      outline-color: #a69bcc;
+      margin-bottom: 25px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 18px;
+    }
+
+    .question {
+        width: 100%;
+        padding: 19px 16px;
+        background: #ffffff;
+        border: 1px solid #f0eaf5;
+        border-radius: 15px;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left;
+        font-family: 'Poppins', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        color: #393441;
+        cursor: pointer;
+        box-shadow: 0 3px 10px rgba(80, 65, 100, 0.04);
+    }
+
+    .question:active {
+      background: #f4effb;
+    }
+
+    .question span {
+      color: #9c8bc8;
+      font-size: 22px;
+      margin-left: 12px;
+    }
+
+
+    .contact {
+      width: 100%;
+      padding: 17px;
+      background: #9889c5;
+      color: white;
+      border: none;
+      border-radius: 15px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+
+    .answer {
+      background: #efecf2;
+      padding: 22px;
+      border-radius: 18px;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    .answer h2 {
+      margin-top: 0;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .empty {
+      color: #88818d;
+      text-align: center;
+      font-size: 14px;
+    }
+    .help-icon {
+      width: 25px;
+      height: 25px;
+      border: 2px solid #625979;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: #625979;
+    }
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: white;
+      border-radius: 15px;
+      padding: 0 16px;
+      margin-bottom: 25px;
+    }
+
+    .search-box .search {
+      flex: 1;
+      width: 100%;
+      min-width: 0;
+      margin: 0;
+      padding: 17px 0;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+    }
+
+    
+/* Flip transition */
+
+  
+    .flip-container {
+      width: 100%;
+      perspective: 1200px;
+    }
+
+    .flip-inner {
+      position: relative;
+      width: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.7s ease-in-out;
+    }
+
+    .flip-inner.flipped {
+      transform: rotateY(180deg);
+    }
+
+    .flip-front,
+    .flip-back {
+      width: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .flip-front {
+      position: relative;
+      transform: rotateY(0deg);
+    }
+
+    .flip-back {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: rotateY(180deg);
+    }
+
+    #answerPage {
+      display: block;
+      padding: 20px 0;
+    }
+
+
+  </style>
+</head>
+
+<body>
+  <main class="app">
+
+    <header class="topbar">
+      <button class="back" onclick="goBack()">&#8592;</button>
+      <div class="help-icon">?</div>
+    </header>
+
+    <div class="flip-container">
+    <div class="flip-inner" id="flipInner">
+    <div class="flip-front">
+
+
+    <section id="faqPage">
+      <div class="hero">
+        <div class="rabbit">
+         <img src="rabbit HOP.png" alt="HOP Logo">
+      </div>
+        <h1>Help & Support</h1>
+        <p class="subtitle">How can we help you?</p>
+      </div>
+
+      <div class="search-box">
+      <svg width="19" height="19" viewBox="0 0 24 24"
+       fill="none" stroke="#9b91ad" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="8"></circle>
+    <path d="m21 21-4.35-4.35"></path>
+  </svg>
+
+       <input
+         class="search"
+         id="search"
+         type="search"
+         placeholder="Search for help..."
+          oninput="filterQuestions()"
+  >
+</div>
+
+      <h2>Frequently Asked Questions</h2>
+
+      <div id="questions"></div>
+
+      <p id="empty" class="empty hidden">
+        No matching questions found.
+      </p>
+
+      <button class="contact" onclick="showContact()">
+        Contact Support
+      </button>
+   
+      </section>
+    </div>
+
+    <div class="flip-back">
+      <section id="answerPage">
+        <h1 id="answerTitle"></h1>
+
+        <div class="answer" id="answerText"></div>
+
+        <button class="contact" onclick="showFAQ()">
+          Back to FAQ
+        </button>
+      </section>
+    </div>
+
+    </div>
+  </div>
+
+  </main>
+
+
+  <script>
+    const faqs = [
+      {
+        question: "How do I apply for a HOP card?",
+        answer: "Create an account, enter your personal details and choose an eligible HOP card. Follow the steps to complete your application."
+      },
+      {
+        question: "Which HOP card is right for me?",
+        answer: "HOP recommends a card based on your details. You can choose from Adult, Young Adult, Student or Child cards depending on your eligibility."
+      },
+      {
+        question: "How can I top up my HOP card?",
+        answer: "Go to the Top Up section, select an amount and follow the instructions to add credit to your card."
+      },
+      {
+        question: "What should I do if my card is lost?",
+        answer: "Report your lost card through the support section. Our team can guide you through the replacement process."
+      },
+      {
+        question: "How can I check my card balance?",
+        answer: "Open your HOP account and go to the Card Balance section to view your available balance."
+      },
+      {
+        question: "How do I reset my password?",
+        answer: "Select Forgot your password? on the login page and follow the instructions to reset your password."
+      }
+    ];
+
+
+    const faqPage = document.getElementById("faqPage");
+    const answerPage = document.getElementById("answerPage");
+
+    function renderQuestions(items) {
+      const container = document.getElementById("questions");
+      container.innerHTML = "";
+
+      items.forEach(item => {
+        const button = document.createElement("button");
+        button.className = "question";
+
+        const label = document.createElement("div");
+        label.textContent = item.question;
+
+        const arrow = document.createElement("span");
+        arrow.textContent = "›";
+
+        button.append(label, arrow);
+        button.onclick = () => showAnswer(item);
+        container.appendChild(button);
+      });
+
+      document.getElementById("empty").classList.toggle(
+        "hidden", items.length > 0
+      );
+    }
+
+    function filterQuestions() {
+      const search = document.getElementById("search")
+        .value.toLowerCase();
+
+      const results = faqs.filter(item =>
+        item.question.toLowerCase().includes(search) ||
+        item.answer.toLowerCase().includes(search)
+      );
+
+      renderQuestions(results);
+    }
+
+    
+    function showAnswer(item) {
+      document.getElementById("answerTitle").textContent =
+       item.question;
+
+      document.getElementById("answerText").textContent =
+        item.answer;
+
+      document.getElementById("flipInner")
+        .classList.add("flipped");
+
+      window.scrollTo(0, 0);
+    }
+
+
+    
+    function showFAQ() {
+      document.getElementById("flipInner")
+        .classList.remove("flipped");
+
+      window.scrollTo(0, 0);
+    }
+
+
+    function showContact() {
+      showAnswer({
+        question: "Contact Support",
+        answer: "Need more help? Please contact our support team. This feature is a demonstration in the HOP prototype."
+      });
+    }
+
+    function goBack() {
+  showFAQ();
+}
+
+    renderQuestions(faqs);
+  </script>
+</body>
+</html>
