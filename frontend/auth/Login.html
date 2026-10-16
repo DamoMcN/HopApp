@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hop App - Login</title>
+    <link rel="stylesheet" href="../shared/css/main.css">
+    <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+
+<div class="auth-container">
+    <div class="logo">
+        <img src="../shared/img/HopBunnie.png" alt="Hop App Logo">
+    </div>
+
+    <form onsubmit="event.preventDefault(); alert('Login submitted');">
+        <div class="form-group">
+            <label for="login-email">Email</label>
+            <input type="email" id="login-email" required placeholder="Enter your email">
+        </div>
+        <div class="form-group" style="margin-bottom: 0.5rem;">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" required placeholder="Enter your password">
+        </div>
+        
+        <div class="meta-links">
+            <a href="#" onclick="alert('Recovery email logic triggered')">Forgot your password?</a>
+        </div>
+        
+        <button type="submit" class="submit-btn">Log In</button>
+
+        <div class="bottom-link">
+            Don't have an account? <a href="SignUp.html">Sign up here</a>
+        </div>
+    </form>
+</div>
+
+<a href="../support/support.html" class="global-help-btn">?</a>
+
+<script src="auth.js"></script>
+</body>
+</html>
