@@ -1,0 +1,25 @@
+{
+  "name": "hopapp",
+  "version": "1.0.0",
+  "description": "A Leap card alternative we are developing for our project managment module in ATU Galway. We aim to improve on the overal system and UI design while adding new and useful features ## Tech Stack * **Frontend:** HTML5, CSS3, Vanilla JavaScript, Leaflet.js (Map interface) * **Backend:** PHP, MySQL (WampServer local environment)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DamoMcN/HopApp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/DamoMcN/HopApp/issues"
+  },
+  "homepage": "https://github.com/DamoMcN/HopApp#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "http-server": "^14.1.1"
+  }
+}
