@@ -86,7 +86,7 @@ function goBack() {
     showFAQ();
   } else {
     // If on the main FAQ list, return to the Login page
-    window.location.href = "../auth/LogIn.html";
+    window.location.href = "../auth/index.html";
   }
 }
 
