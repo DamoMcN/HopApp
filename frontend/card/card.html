@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hop App - My Card</title>
+    <link rel="stylesheet" href="../shared/css/main.css">
+    <link rel="stylesheet" href="card.css">
+</head>
+<body class="app-page">
+
+    <header class="app-header">
+        <button class="menu-btn" id="menu-btn" type="button" aria-label="Open menu">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <h1>Welcome back, <span id="user-name"></span>!</h1>
+    </header>
+
+    <!-- Card -->
+    <div class="card-container">
+        <div id="active-hop-card" class="hop-card" aria-label="Your Hop Card">
+            <span id="card-type-display" class="card-type"></span>
+            <span class="card-balance">
+                <span class="card-balance-label">Balance</span>
+                <span id="card-balance-display">&mdash;</span>
+            </span>
+            <span id="card-number-display" class="card-number"></span>
+            <div class="glare" id="glare"></div>
+        </div>
+    </div>
+
+    <!-- Transactions -->
+    <section class="transactions" aria-labelledby="tx-heading">
+        <h2 id="tx-heading">Transactions</h2>
+        <p id="transaction-status" class="transaction-status">Loading&hellip;</p>
+        <ul id="transaction-list" class="transaction-list"></ul>
+    </section>
+
+    <script src="../shared/js/menu.js"></script>
+    <script src="card.js"></script>
+</body>
+</html>

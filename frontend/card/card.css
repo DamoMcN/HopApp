@@ -1,0 +1,181 @@
+/* Card page only.
+   Shared layout, header and hamburger menu live in shared/css/main.css */
+
+/* ---------- 3D card ---------- */
+
+.card-container {
+    width: 100%;
+    max-width: var(--content-width);
+    perspective: 1000px; /* creates the 3D space */
+}
+
+.hop-card {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2208 / 1328; /* matches HopCardTrim.png */
+    background-image: url('../shared/img/HopCardTrim.png');
+    background-size: cover;
+    background-position: center;
+    border-radius: 18px;
+    box-shadow: 0 20px 40px rgba(60, 30, 100, 0.35),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+    transform-style: preserve-3d;
+    transition: transform 0.1s ease-out;
+    touch-action: none; /* stops the page scrolling while dragging the card */
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+/* Smooth return to flat */
+.hop-card.resetting {
+    transition: transform 0.5s ease-out;
+}
+
+/* Card type, top-left */
+.card-type {
+    position: absolute;
+    top: 7%;
+    left: 5%;
+    font-size: clamp(0.7rem, 3vw, 0.95rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--card-ink);
+    opacity: 0.85;
+}
+
+/* Balance, top-right */
+.card-balance {
+    position: absolute;
+    top: 7%;
+    right: 5%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    color: var(--card-ink);
+    font-weight: 700;
+    font-size: clamp(1rem, 5vw, 1.4rem);
+    line-height: 1.1;
+}
+
+.card-balance-label {
+    font-size: clamp(0.6rem, 2.4vw, 0.75rem);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.75;
+}
+
+/* Card number, sits just above the "Uimhir/Number" label on the image */
+.card-number {
+    position: absolute;
+    left: 5%;
+    bottom: 19%;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: clamp(1rem, 5vw, 1.45rem);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--card-ink);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.glare {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.5), transparent 50%);
+    opacity: 0;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+    transition: opacity 0.3s;
+    z-index: 10;
+}
+
+.card-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* ---------- Transactions ---------- */
+
+.transactions {
+    width: 100%;
+    max-width: var(--content-width);
+    padding-bottom: 2rem;
+}
+
+.transactions h2 {
+    font-size: 1.1rem;
+    color: var(--text-main);
+    margin-bottom: 0.75rem;
+}
+
+.transaction-status {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.transaction-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.transaction {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background-color: var(--surface-color);
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+}
+
+.tx-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.7);
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.tx-icon.in  { color: var(--positive); }
+.tx-icon.out { color: var(--negative); }
+
+.tx-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.tx-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tx-date {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.tx-amount {
+    flex-shrink: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.tx-amount.in  { color: var(--positive); }
+.tx-amount.out { color: var(--negative); }

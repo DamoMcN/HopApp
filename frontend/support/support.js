@@ -84,10 +84,10 @@ function goBack() {
   if (flipInner.classList.contains("flipped")) {
     // If viewing a specific answer, flip back to the FAQ list
     showFAQ();
+  }  else if (document.referrer && new URL(document.referrer).origin === window.location.origin) {
+    history.back();   // came from another app page, e.g. the card page
   } else {
-    // If on the main FAQ list, return to the Login page
     window.location.href = "../auth/index.html";
   }
 }
-
 renderQuestions(faqs);
