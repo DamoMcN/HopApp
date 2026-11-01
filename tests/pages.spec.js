@@ -2,27 +2,30 @@
 const { test, expect } = require('@playwright/test');
 
 test('Registration page loads successfully', async ({ page }) => {
-  await page.goto('/frontend/auth/Signup.html');
+  const response = await page.goto('/frontend/auth/signup.html');
 
+  expect(response.status()).toBe(200);
   await expect(page.locator('#first-name')).toBeVisible();
   await expect(page.locator('#last-name')).toBeVisible();
 });
 
 test('Login page loads successfully', async ({ page }) => {
-  await page.goto('/frontend/auth/Login.html');
+  const response = await page.goto('/frontend/auth/index.html');
 
-  await expect(page.locator('body')).toBeVisible();
+  expect(response.status()).toBe(200);
+  await expect(page.locator('#login-form')).toBeVisible();
 });
 
 test('Support page loads successfully', async ({ page }) => {
-  await page.goto('/frontend/support/support.html');
+  const response = await page.goto('/frontend/support/support.html');
 
-  await expect(page.locator('body')).toBeVisible();
+  expect(response.status()).toBe(200);
+  await expect(page.getByRole('heading', { name: 'Help & Support' })).toBeVisible();
 });
 
 
 test('Registration form has required fields', async ({ page }) => {
-  await page.goto('/frontend/auth/Signup.html');
+  await page.goto('/frontend/auth/signup.html');
 
   const requiredFields = [
     '#first-name',
@@ -41,7 +44,7 @@ test('Registration form has required fields', async ({ page }) => {
 });
 
 test('Invalid email is rejected by browser validation', async ({ page }) => {
-  await page.goto('/frontend/auth/Signup.html');
+  await page.goto('/frontend/auth/signup.html');
 
   await page.locator('#signup-email').fill('invalid-email');
 
@@ -53,7 +56,7 @@ test('Invalid email is rejected by browser validation', async ({ page }) => {
 });
 
 test('Empty registration form cannot be submitted', async ({ page }) => {
-  await page.goto('/frontend/auth/Signup.html');
+  await page.goto('/frontend/auth/signup.html');
 
   await page.locator('button[type="submit"]').click();
 
@@ -80,7 +83,7 @@ async function checkEligibility(page, age, isStudent = false) {
     String(birthDate.getDate()).padStart(2, '0')
   ].join('-');
 
-  await page.goto('/frontend/auth/Signup.html');
+  await page.goto('/frontend/auth/signup.html');
 
   await page.locator('#first-name').fill('Test');
   await page.locator('#last-name').fill('User');
