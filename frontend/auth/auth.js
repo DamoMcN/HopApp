@@ -30,6 +30,80 @@ function closeModal() {
 }
 
 // =========================================
+//  Friendly pop-ups
+// =========================================
+
+// One reusable pop-up that replaces alert(). Options:
+//   title, message, items (optional bullet list), focusId (field to highlight
+//   and focus when the pop-up is closed), link { text, href } (optional)
+let noticeDialog = null;
+
+function getNoticeDialog() {
+    if (noticeDialog) return noticeDialog;
+
+    const d = document.createElement('dialog');
+    d.className = 'notice';
+    d.setAttribute('role', 'alertdialog');
+    d.setAttribute('aria-labelledby', 'notice-title');
+    d.setAttribute('aria-describedby', 'notice-text');
+    d.innerHTML =
+        '<div class="notice-icon" aria-hidden="true">!</div>' +
+        '<h3 id="notice-title"></h3>' +
+        '<p id="notice-text"></p>' +
+        '<ul id="notice-list" class="notice-list" hidden></ul>' +
+        '<div class="notice-actions">' +
+        '<button type="button" id="notice-ok" class="modal-submit-btn">OK</button>' +
+        '<a id="notice-link" class="notice-link" hidden></a>' +
+        '</div>';
+    document.body.appendChild(d);
+    d.querySelector('#notice-ok').addEventListener('click', () => d.close());
+
+    noticeDialog = d;
+    return d;
+}
+
+function markFieldError(id) {
+    const field = id ? document.getElementById(id) : null;
+    if (!field) return;
+    field.classList.add('has-error');
+    field.setAttribute('aria-invalid', 'true');
+    field.focus();
+
+    // The red outline goes away as soon as the person starts fixing it
+    const clear = () => {
+        field.classList.remove('has-error');
+        field.removeAttribute('aria-invalid');
+    };
+    field.addEventListener('input', clear, { once: true });
+    field.addEventListener('change', clear, { once: true });
+}
+
+function showNotice(options) {
+    const d = getNoticeDialog();
+    d.querySelector('#notice-title').textContent = options.title || 'Something went wrong';
+    d.querySelector('#notice-text').textContent = options.message || '';
+
+    const list = d.querySelector('#notice-list');
+    list.innerHTML = '';
+    (options.items || []).forEach(text => {
+        const li = document.createElement('li');
+        li.textContent = text;
+        list.appendChild(li);
+    });
+    list.hidden = !(options.items && options.items.length);
+
+    const link = d.querySelector('#notice-link');
+    link.hidden = !options.link;
+    if (options.link) {
+        link.textContent = options.link.text;
+        link.href = options.link.href;
+    }
+
+    d.onclose = () => markFieldError(options.focusId);
+    if (!d.open) d.showModal();
+}
+
+// =========================================
 //  Password rules
 // =========================================
 
@@ -41,6 +115,15 @@ const PASSWORD_RULES = {
     symbol: pw => /[^A-Za-z0-9]/.test(pw)
 };
 
+// What to tell the person when a rule isn't met
+const PASSWORD_RULE_TEXT = {
+    length: 'At least 8 characters',
+    digit:  'A number (0-9)',
+    upper:  'An uppercase letter (A-Z)',
+    lower:  'A lowercase letter (a-z)',
+    symbol: 'A symbol, like ! @ # $ %'
+};
+
 function checkPassword(pw) {
     const failed = [];
     for (const [rule, test] of Object.entries(PASSWORD_RULES)) {
@@ -49,9 +132,11 @@ function checkPassword(pw) {
     return failed; // empty array = password is valid
 }
 
-// Live ticks under the password box (signup page only)
+// Live feedback on the signup page: rule ticks under the password box, and a
+// "passwords match" line under the confirm box
 document.addEventListener('DOMContentLoaded', () => {
     const pwInput = document.getElementById('signup-password');
+    const confirmInput = document.getElementById('confirm-password');
     if (!pwInput) return;
 
     pwInput.addEventListener('input', () => {
@@ -60,7 +145,58 @@ document.addEventListener('DOMContentLoaded', () => {
             li.classList.toggle('met', !failed.includes(li.dataset.rule));
         });
     });
+
+    if (!confirmInput) return;
+
+    const hint = document.createElement('p');
+    hint.id = 'confirm-hint';
+    hint.className = 'field-hint';
+    hint.setAttribute('aria-live', 'polite');
+    confirmInput.insertAdjacentElement('afterend', hint);
+
+    // Says "match" as soon as they do, but only says "don't match" once the
+    // confirm box is as long as the password (or they leave it), so it doesn't
+    // nag while they are still typing
+    function updateConfirmHint(leaving) {
+        const confirm = confirmInput.value;
+        const password = pwInput.value;
+
+        if (confirm === '') {
+            hint.textContent = '';
+            hint.className = 'field-hint';
+        } else if (confirm === password) {
+            hint.textContent = '\u2713 Passwords match';
+            hint.className = 'field-hint ok';
+        } else if (leaving || confirm.length >= password.length) {
+            hint.textContent = "\u2717 Passwords don't match yet";
+            hint.className = 'field-hint bad';
+        } else {
+            hint.textContent = '';
+            hint.className = 'field-hint';
+        }
+    }
+
+    confirmInput.addEventListener('input', () => updateConfirmHint(false));
+    confirmInput.addEventListener('blur', () => updateConfirmHint(true));
+    pwInput.addEventListener('input', () => {
+        if (confirmInput.value !== '') updateConfirmHint(false);
+    });
 });
+
+// Reads the server's JSON reply. If it isn't JSON (for example a PHP error
+// page), throws an error with a friendly message instead of a technical one.
+async function readJson(response) {
+    const text = await response.text();
+    try {
+        return JSON.parse(text);
+    } catch {
+        console.error('Server did not return JSON:', text);
+        const error = new Error('Server did not return JSON');
+        error.friendlyTitle = 'Something went wrong on our side';
+        error.friendlyMessage = 'Please try again in a moment.';
+        throw error;
+    }
+}
 
 // =========================================
 //  Signup
@@ -74,19 +210,42 @@ function handleSignup(event) {
 
     const password = document.getElementById('signup-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
+
     if (password !== confirmPassword) {
-        alert('Passwords do not match.');
+        showNotice({
+            title: "Passwords don't match",
+            message: 'The two passwords you typed are different. Please type the same password in both boxes.',
+            focusId: 'confirm-password'
+        });
         return;
     }
-    if (checkPassword(password).length > 0) {
-        alert('Password must be at least 8 characters and include a digit, an uppercase letter, a lowercase letter and a symbol.');
-        document.getElementById('signup-password').focus();
+
+    const failedRules = checkPassword(password);
+    if (failedRules.length > 0) {
+        showNotice({
+            title: 'Your password needs a little more',
+            message: 'To keep your card safe, your password still needs:',
+            items: failedRules.map(rule => PASSWORD_RULE_TEXT[rule]),
+            focusId: 'signup-password'
+        });
         return;
     }
 
     const age = calculateAge(dobInput);
     if (age < 0) {
-        alert('Please enter a valid date of birth.');
+        showNotice({
+            title: 'Check your date of birth',
+            message: "That date is in the future. Please enter the date you were born.",
+            focusId: 'dob'
+        });
+        return;
+    }
+    if (age > 120) {
+        showNotice({
+            title: 'Check your date of birth',
+            message: "That date doesn't look right. Please check the year and try again.",
+            focusId: 'dob'
+        });
         return;
     }
 
@@ -179,8 +338,7 @@ async function submitSignup() {
     const actionButton = document.getElementById('modal-action-btn');
     const formData = new FormData(form);
 
-    // Tidy up what gets sent to PHP
-    formData.delete('confirm_password');
+    // confirm_password is sent too, so the server checks the passwords match as well
     const selected = document.querySelector('.card-option.selected');
     formData.append('card_type', selected ? selected.dataset.cardId : '');
 
@@ -193,29 +351,39 @@ async function submitSignup() {
             body: formData
         });
 
-        const text = await response.text();
-        console.log('Server said:', text); // remove once everything works
-
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch {
-            throw new Error('Server did not return JSON (check the console output above).');
-        }
+        const data = await readJson(response);
 
         if (data.success) {
             window.location.href = 'index.html';
+            return;
+        }
+
+        // Close the card chooser so the person can see and fix the form
+        closeModal();
+        if (data.code === 'email_taken') {
+            showNotice({
+                title: 'That email is already registered',
+                message: 'There is already a Hop account using this email address. Try logging in instead, or use a different email.',
+                focusId: 'signup-email',
+                link: { text: 'Go to Log In', href: 'index.html' }
+            });
         } else {
-            alert('Registration failed: ' + data.message);
-            actionButton.disabled = false;
-            actionButton.innerText = 'Create Account';
+            showNotice({
+                title: "We couldn't create your account",
+                message: data.message || 'Something went wrong. Please try again.',
+                focusId: data.field
+            });
         }
     } catch (error) {
         console.error('Signup error:', error);
-        alert('Something went wrong: ' + error.message);
-        actionButton.disabled = false;
-        actionButton.innerText = 'Create Account';
+        showNotice({
+            title: error.friendlyTitle || "Couldn't reach Hop",
+            message: error.friendlyMessage || 'Please check your internet connection and try again.'
+        });
     }
+
+    actionButton.disabled = false;
+    actionButton.innerText = 'Create Account';
 }
 
 // =========================================
@@ -240,26 +408,46 @@ async function handleLogin(event) {
             body: formData
         });
 
-        const text = await response.text();
-        console.log('Server said:', text); // remove once everything works
-
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch {
-            throw new Error('Server did not return JSON (check the console output above).');
-        }
+        const data = await readJson(response);
 
         if (data.success) {
             window.location.href = '../card/card.html';
             return; // page is navigating away, leave the button as is
         }
-        alert(data.message);
+
+        const passwordField = document.getElementById('login-password');
+        if (data.code === 'bad_credentials') {
+            passwordField.value = '';
+            showNotice({
+                title: "Those details don't match",
+                message: "We couldn't find an account with that email and password. Check them and try again. Passwords are case-sensitive.",
+                focusId: 'login-password'
+            });
+        } else {
+            showNotice({
+                title: "Couldn't log you in",
+                message: data.message || 'Something went wrong. Please try again.',
+                focusId: 'login-email'
+            });
+        }
     } catch (error) {
         console.error('Login error:', error);
-        alert('Something went wrong: ' + error.message);
+        showNotice({
+            title: error.friendlyTitle || "Couldn't reach Hop",
+            message: error.friendlyMessage || 'Please check your internet connection and try again.'
+        });
     }
 
     button.disabled = false;
     button.innerText = 'Log In';
+}
+
+// "Forgot your password?" isn't built yet, so say so instead of showing a developer alert
+function forgotPassword(event) {
+    event.preventDefault();
+    showNotice({
+        title: 'Password reset is coming soon',
+        message: "You can't reset your password in the app yet. Please contact Help & Support and we'll help you get back in.",
+        link: { text: 'Go to Help & Support', href: '../support/support.html' }
+    });
 }

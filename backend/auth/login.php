@@ -2,32 +2,28 @@
 session_start();
 header('Content-Type: application/json');
 
-$host    = 'localhost';
-$db      = 'hop_app_db';
-$user    = 'root';
-$pass    = '';
-$charset = 'utf8mb4';
+require_once __DIR__ . '/../db_connect.php';   // database settings live in one place
 
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-$options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => false,
-];
-
-function respond($success, $message = '') {
-    echo json_encode(['success' => $success, 'message' => $message]);
+// $code lets the front end pick a friendly message (for example 'bad_credentials')
+function respond($success, $message = '', $code = null) {
+    echo json_encode(['success' => $success, 'message' => $message, 'code' => $code]);
     exit;
 }
 
+// Technical details go to the PHP error log, never to the person using the app
+function server_error($detail) {
+    error_log('[HopApp login] ' . $detail);
+    respond(false, 'Something went wrong on our side. Please try again in a moment.', 'server_error');
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    respond(false, 'Invalid request method.');
+    respond(false, 'Invalid request.', 'bad_request');
 }
 
 try {
-    $pdo = new PDO($dsn, $user, $pass, $options);
+    $pdo = hop_pdo();
 } catch (PDOException $e) {
-    respond(false, 'Database connection failed: ' . $e->getMessage());
+    server_error('Database connection failed: ' . $e->getMessage());
 }
 
 $email    = trim($_POST['user_email'] ?? '');
@@ -42,12 +38,12 @@ try {
     $stmt->execute([$email]);
     $foundUser = $stmt->fetch();
 } catch (PDOException $e) {
-    respond(false, 'Database error: ' . $e->getMessage());
+    server_error('Lookup failed: ' . $e->getMessage());
 }
 
 // Same message for "no such email" and "wrong password" so attackers can't tell which
 if (!$foundUser || !password_verify($password, $foundUser['password_hash'])) {
-    respond(false, 'Incorrect email or password.');
+    respond(false, 'Incorrect email or password.', 'bad_credentials');
 }
 
 // Remember who is logged in, for card.html and other pages later

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Hop App - Tickets</title>
+    <link rel="stylesheet" href="../shared/css/main.css">
+    <link rel="stylesheet" href="../shared/css/navbar.css">
+    <link rel="stylesheet" href="tickets.css">
+</head>
+<body class="has-bottom-nav app-page tickets-page" data-nav="tickets">
+
+    <header class="app-header">
+        <button class="menu-btn" id="menu-btn" type="button" aria-label="Open menu">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <h1>Tickets</h1>
+    </header>
+
+    <main class="tickets-main">
+        <section class="journey" id="journey" aria-labelledby="journey-title" hidden>
+            <h2 id="journey-title">Your journey</h2>
+
+            <div class="journey-route">
+                <span class="journey-badge" id="j-badge"></span>
+                <div>
+                    <span class="journey-name" id="j-name"></span>
+                    <span class="journey-agency" id="j-agency"></span>
+                </div>
+            </div>
+
+            <ol class="journey-stops">
+                <li><span class="journey-pin from" aria-hidden="true"></span>
+                    <div><small>From</small><strong id="j-from"></strong></div></li>
+                <li><span class="journey-pin to" aria-hidden="true"></span>
+                    <div><small>To</small><strong id="j-to"></strong></div></li>
+            </ol>
+
+            <p class="journey-between" id="j-between"></p>
+
+            <button class="buy-btn" type="button" disabled>Buy ticket</button>
+            <p class="journey-note">Buying tickets is coming soon. Your journey is saved until you close the app.</p>
+
+            <div class="journey-actions">
+                <a href="../map/map.html?mode=tickets">Change journey</a>
+                <button type="button" id="clear-journey">Clear</button>
+            </div>
+        </section>
+
+        <section class="tickets-empty" id="tickets-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 9a2 2 0 0 0 0 6v2.5A1.5 1.5 0 0 0 4.5 19h15a1.5 1.5 0 0 0 1.5-1.5V15a2 2 0 0 1 0-6V6.5A1.5 1.5 0 0 0 19.5 5h-15A1.5 1.5 0 0 0 3 6.5z"/>
+                <path d="M14 5v2M14 11v2M14 17v2"/>
+            </svg>
+            <h2>Tickets are coming soon</h2>
+            <p>Soon you will be able to buy bus tickets here and show them when you board.</p>
+            <a href="../map/map.html?mode=tickets">Plan a journey</a>
+        </section>
+    </main>
+
+    <script src="../shared/js/menu.js"></script>
+    <script src="../shared/js/navbar.js"></script>
+    <script src="tickets.js"></script>
+</body>
+</html>

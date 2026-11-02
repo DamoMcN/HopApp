@@ -4,6 +4,7 @@
 /* ---------- 3D card ---------- */
 
 .card-container {
+    position: relative;  /* anchors the actions drop-down under the card */
     width: 100%;
     max-width: var(--content-width);
     perspective: 1000px; /* creates the 3D space */
@@ -13,7 +14,7 @@
     position: relative;
     width: 100%;
     aspect-ratio: 2208 / 1328; /* matches HopCardTrim.png */
-    background-image: url('../shared/img/HopCardTrim.png');
+    background-image: url('../shared/img/HopCardTrim.webp');
     background-size: cover;
     background-position: center;
     border-radius: 18px;
@@ -90,12 +91,6 @@
     mix-blend-mode: overlay;
     transition: opacity 0.3s;
     z-index: 10;
-}
-
-.card-hint {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    text-align: center;
 }
 
 /* ---------- Transactions ---------- */
@@ -179,3 +174,183 @@
 
 .tx-amount.in  { color: var(--positive); }
 .tx-amount.out { color: var(--negative); }
+
+/* ---------- Frozen / reported card ---------- */
+
+/* Pale veil over the card with a badge */
+.frozen-veil {
+    position: absolute;
+    inset: 0;
+    z-index: 5;                  /* above the card text, below the glare */
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(214, 224, 238, 0.65);
+    pointer-events: none;
+}
+
+.hop-card.is-frozen .frozen-veil {
+    display: flex;
+}
+
+.frozen-badge {
+    padding: 0.45rem 1.1rem;
+    border-radius: 99px;
+    background-color: var(--card-ink);
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* ---------- Card actions drop-down ---------- */
+
+.card-menu {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    left: 0;
+    right: 0;
+    z-index: 30;                 /* floats over the transactions below */
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.4rem;
+    background-color: var(--background-color);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(40, 20, 80, 0.25),
+                0 0 0 1px rgba(61, 42, 92, 0.08);
+    opacity: 0;
+    visibility: hidden;          /* closed items can't be tabbed to */
+    transform: translateY(-6px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s;
+}
+
+.card-menu.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition-delay: 0s;
+}
+
+.card-menu-item {
+    width: 100%;
+    text-align: left;
+    padding: 0.9rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.card-menu-item:hover,
+.card-menu-item:focus-visible {
+    background-color: var(--surface-color);
+    outline: none;
+}
+
+.card-menu-item.danger {
+    color: var(--negative);
+}
+
+/* thin line between the freeze action and the report actions */
+.card-menu-item:not(.danger) + .card-menu-item.danger {
+    margin-top: 0.25rem;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    box-shadow: 0 -1px 0 var(--surface-color);
+}
+
+.card-menu-note {
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+/* Result of an action, shown under the card */
+.card-message {
+    max-width: var(--content-width);
+    font-size: 0.9rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.card-message:empty {
+    display: none;
+}
+
+.card-message.ok  { color: var(--positive); font-weight: 600; }
+.card-message.err { color: var(--negative); font-weight: 600; }
+
+/* ---------- Report lost / stolen confirmation ---------- */
+
+.report-dialog {
+    margin: auto;
+    width: min(340px, 92vw);
+    padding: 1.25rem;
+    border: none;
+    border-radius: 16px;
+    background-color: var(--background-color);
+    color: var(--text-main);
+}
+
+.report-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.report-dialog[open] {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.report-dialog h2 {
+    font-size: 1.15rem;
+}
+
+.report-dialog p {
+    font-size: 0.92rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+.report-dialog .report-error {
+    color: var(--negative);
+    font-weight: 600;
+}
+
+.report-dialog .report-error[hidden] {
+    display: none;
+}
+
+.report-confirm,
+.report-cancel {
+    width: 100%;
+    padding: 0.9rem;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.report-confirm {
+    background-color: var(--negative);
+    color: #ffffff;
+    border: 2px solid var(--negative);
+}
+
+.report-cancel {
+    background-color: transparent;
+    color: var(--card-ink);
+    border: 2px solid var(--card-ink);
+}
+
+.report-confirm:disabled,
+.report-cancel:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

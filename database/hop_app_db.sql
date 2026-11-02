@@ -39,6 +39,25 @@ CREATE TABLE IF NOT EXISTS `favourite_routes` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `saved_cards`
+-- Brand + last 4 only. Never store full card numbers.
+--
+
+DROP TABLE IF EXISTS `saved_cards`;
+CREATE TABLE IF NOT EXISTS `saved_cards` (
+  `card_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `brand` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last4` char(4) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `provider_payment_method_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`card_id`),
+  UNIQUE KEY `unique_user_card` (`user_id`,`brand`,`last4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `settings`
 --
 
@@ -87,6 +106,7 @@ CREATE TABLE IF NOT EXISTS `transactions` (
   `ticket_id` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`transaction_id`),
+  UNIQUE KEY `unique_payment_ref` (`stripe_payment_id`),
   KEY `user_id` (`user_id`),
   KEY `ticket_id` (`ticket_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -103,7 +123,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `f_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `l_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `card_number` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `card_status` enum('active','frozen','reported_lost') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `card_status` enum('active','frozen','reported_lost','reported_stolen') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `phone_number` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -127,6 +147,12 @@ CREATE TABLE IF NOT EXISTS `users` (
 --
 ALTER TABLE `favourite_routes`
   ADD CONSTRAINT `favourite_routes_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `saved_cards`
+--
+ALTER TABLE `saved_cards`
+  ADD CONSTRAINT `saved_cards_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `settings`

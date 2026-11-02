@@ -1,18 +1,25 @@
 <?php
-$host = 'localhost';
-$dbname = 'hop_app_db';
-$username = 'root';
-$password = '';
+// The one place the database connection settings live.
+//
+// Every PHP endpoint in backend/auth/ calls hop_pdo(), so to change the host,
+// database name, user or password you only need to edit this file.
+//
+// hop_pdo() throws a PDOException if it can't connect. Each endpoint catches
+// that and replies with a friendly JSON error (nothing technical is shown to
+// the person using the app).
 
-try {
-    // Create a new PDO instance
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
+const HOP_DB_HOST    = 'localhost';
+const HOP_DB_NAME    = 'hop_app_db';
+const HOP_DB_USER    = 'root';
+const HOP_DB_PASS    = '';
+const HOP_DB_CHARSET = 'utf8mb4';
 
-    // Set the PDO error mode to exception to catch any bugs easily
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+function hop_pdo(): PDO {
+    $dsn = 'mysql:host=' . HOP_DB_HOST . ';dbname=' . HOP_DB_NAME . ';charset=' . HOP_DB_CHARSET;
 
-    // echo "Connected successfully"; // Uncomment this line to test the connection
-} catch (PDOException $e) {
-    die("Database connection failed: " . $e->getMessage());
+    return new PDO($dsn, HOP_DB_USER, HOP_DB_PASS, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ]);
 }
-?>

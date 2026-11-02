@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hop App - Top Up</title>
+    <link rel="stylesheet" href="../shared/css/main.css">
+    <link rel="stylesheet" href="topup.css">
+    <link rel="stylesheet" href="../shared/css/navbar.css">
+</head>
+<body class="has-bottom-nav app-page" data-nav="topup">
+
+    <header class="app-header">
+        <button class="menu-btn" id="menu-btn" type="button" aria-label="Open menu">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <h1>Top up your card</h1>
+    </header>
+
+    <main class="topup">
+        <p id="mode-note" class="mode-note" hidden></p>
+
+        <p class="balance-line">
+            Current balance <strong id="balance-display">&mdash;</strong>
+        </p>
+
+        <section class="panel" aria-labelledby="amount-heading">
+            <h2 id="amount-heading">Amount</h2>
+
+            <!-- Circular slider. Drag the dot, tap the ring, or use the arrow keys. -->
+            <div id="dial" class="dial" role="slider" tabindex="0"
+                 aria-label="Top up amount"
+                 aria-valuemin="5" aria-valuemax="100" aria-valuenow="10" aria-valuetext="€10.00">
+                <svg class="dial-svg" viewBox="0 0 200 200" aria-hidden="true">
+                    <circle class="dial-track" cx="100" cy="100" r="85"></circle>
+                    <circle id="dial-arc" class="dial-arc" cx="100" cy="100" r="85"></circle>
+                    <circle id="dial-handle" class="dial-handle" cx="100" cy="15" r="11"></circle>
+                </svg>
+                <div class="dial-center">
+                    <span id="dial-amount" class="dial-amount">&euro;10.00</span>
+                    <span class="dial-label">Top up value</span>
+                    <span id="dial-after" class="dial-after"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel" aria-labelledby="pay-heading">
+            <h2 id="pay-heading">Pay with</h2>
+            <div id="card-list" class="card-list"></div>
+            <button id="add-card-btn" class="secondary-btn" type="button">+ Add demo card</button>
+        </section>
+
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+
+        <button id="pay-btn" class="submit-btn" type="button" disabled>Top up</button>
+        <button id="wallet-btn" class="secondary-btn" type="button" hidden>Pay with wallet (demo)</button>
+
+        <a class="back-link" href="../card/card.html">&larr; Back to my card</a>
+    </main>
+
+    <!-- Simulated wallet sheet. Deliberately generic and labelled DEMO: not a real wallet, no third-party branding. -->
+    <dialog id="wallet-dialog" class="wallet-dialog" aria-labelledby="wallet-title">
+        <div class="sheet-handle" aria-hidden="true"></div>
+
+        <div class="sheet-head">
+            <span class="demo-tag">DEMO</span>
+            <h2 id="wallet-title">Confirm payment</h2>
+            <p class="sheet-sub">Simulated wallet. No real wallet or bank is contacted.</p>
+        </div>
+
+        <!-- 1. Review -->
+        <div id="wallet-review" class="sheet-view">
+            <div class="wallet-card" aria-hidden="true">
+                <span>Demo wallet</span>
+                <span class="wallet-card-num">&bull;&bull;&bull;&bull; 0000</span>
+            </div>
+            <dl class="sheet-rows">
+                <div><dt>Pay to</dt><dd>Hop</dd></div>
+                <div><dt>Top up</dt><dd id="wallet-amount"></dd></div>
+                <div><dt>Balance after</dt><dd id="wallet-after"></dd></div>
+            </dl>
+            <button id="wallet-confirm" class="submit-btn" type="button">Confirm (demo)</button>
+            <button id="wallet-cancel" class="secondary-btn" type="button">Cancel</button>
+        </div>
+
+        <!-- 2. Processing -->
+        <div id="wallet-processing" class="sheet-view sheet-status" role="status" hidden>
+            <div class="spinner" aria-hidden="true"></div>
+            <p>Processing&hellip;</p>
+        </div>
+
+        <!-- 3. Success -->
+        <div id="wallet-success" class="sheet-view sheet-status" role="status" hidden>
+            <div class="status-mark ok" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+                     stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <path class="check-path" d="M5 12.5l4.5 4.5L19 7.5"></path>
+                </svg>
+            </div>
+            <p id="wallet-success-text">Added</p>
+        </div>
+
+        <!-- 4. Error -->
+        <div id="wallet-error" class="sheet-view sheet-status" role="alert" hidden>
+            <div class="status-mark err" aria-hidden="true">!</div>
+            <p id="wallet-error-text">Something went wrong</p>
+            <button id="wallet-retry" class="submit-btn" type="button">Try again</button>
+            <button id="wallet-close" class="secondary-btn" type="button">Close</button>
+        </div>
+    </dialog>
+
+    <script src="../shared/js/menu.js"></script>
+    <script src="../shared/js/navbar.js"></script>
+    <script src="topup.js"></script>
+</body>
+</html>

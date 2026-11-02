@@ -60,6 +60,105 @@
 
 
 /* =========================================
+   FRIENDLY POP-UPS AND FIELD ERRORS
+   ========================================= */
+.form-group input.has-error,
+.form-group select.has-error {
+    border-color: var(--negative);
+    box-shadow: 0 0 0 3px rgba(169, 50, 38, 0.15);
+}
+
+.field-hint {
+    min-height: 1.2em;
+    margin: 0.4rem 0 0;
+    font-size: 0.85rem;
+}
+
+.field-hint.ok  { color: var(--positive); }
+.field-hint.bad { color: var(--negative); }
+
+dialog.notice {
+    margin: auto;   /* the global reset removes the dialog's own centring */
+    border: none;
+    border-radius: 20px;
+    padding: 1.75rem 1.5rem 1.25rem;
+    width: calc(100% - 2rem);
+    max-width: 360px;
+    text-align: center;
+    background: #ffffff;
+    color: var(--text-main);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    animation: noticeIn 0.2s ease-out;
+}
+
+dialog.notice::backdrop {
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.notice-icon {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 0.75rem;
+    border-radius: 50%;
+    background: #f9e3e0;
+    color: var(--negative);
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 44px;
+}
+
+dialog.notice h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.2rem;
+}
+
+dialog.notice p {
+    margin: 0 0 1rem;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.notice-list {
+    margin: -0.25rem auto 1rem;
+    padding: 0.75rem 1rem 0.75rem 2rem;
+    max-width: 260px;
+    text-align: left;
+    font-size: 0.9rem;
+    background: #fbf3f2;
+    border-radius: 12px;
+    color: var(--text-main);
+}
+
+.notice-list li + li {
+    margin-top: 0.25rem;
+}
+
+.notice-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.notice-link {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+@keyframes noticeIn {
+    from { transform: translateY(8px) scale(0.97); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    dialog.notice { animation: none; }
+}
+
+
+/* =========================================
    MODAL & CARD GRID STYLES
    ========================================= */
 .modal-overlay {
@@ -96,7 +195,7 @@
 .card-option { 
     border-radius: 12px; 
     border: 3px solid transparent; 
-    background-image: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url('../shared/img/HopCardTrim.png'); 
+    background-image: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url('../shared/img/HopCardTrim.webp'); 
     background-size: cover;
     background-position: center;
     position: relative; 

@@ -88,37 +88,133 @@ h2 {
   color: var(--text-main);
 }
 
-/* Updated to match the light purple surface color and system fonts */
-.question {
-  width: 100%;
-  padding: 1.2rem 1rem;
+/* ---------- FAQ: collapsible sections ---------- */
+
+.faq-section {
   background-color: var(--surface-color);
-  border: none;
   border-radius: 12px;
   margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.faq-section h3,
+.faq-item h4 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.faq-section-btn {
+  width: 100%;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  padding: 1.2rem 1rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.faq-section-title {
+  flex: 1;
+}
+
+.faq-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* The arrow points right when closed and turns to point down when open */
+.chevron {
+  color: var(--card-ink);
+  font-size: 1.2rem;
+  line-height: 1;
+  transition: transform 0.25s ease;
+}
+
+[aria-expanded="true"] > .chevron {
+  transform: rotate(90deg);
+}
+
+.faq-section-body {
+  padding: 0 0.6rem 0.6rem;
+}
+
+.faq-item {
+  background-color: var(--background-color);
+  border-radius: 10px;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+
+.faq-item:last-child {
+  margin-bottom: 0;
+}
+
+.faq-q {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 1rem;
+  background: none;
+  border: none;
   text-align: left;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-main);
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.question:hover {
-  filter: brightness(0.95);
+.faq-q > span:first-child {
+  flex: 1;
 }
 
-.question:active {
-  transform: scale(0.98);
+.faq-a {
+  padding: 0 1rem 1rem;
+  line-height: 1.6;
+  font-size: 0.95rem;
+  color: var(--text-main);
 }
 
-.question span {
-  color: var(--primary-color);
-  font-size: 1.2rem;
-  margin-left: 12px;
+.faq-section-btn:focus-visible,
+.faq-q:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: -3px;
+}
+
+/* Open/close animation: the panel's row grows from 0 to its natural height */
+.faq-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+
+.faq-panel.is-open {
+  grid-template-rows: 1fr;
+}
+
+.faq-panel-inner {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;   /* closed content can't be tabbed to or read out */
+  transition: visibility 0s linear 0.25s;
+}
+
+.faq-panel.is-open > .faq-panel-inner {
+  visibility: inherit;   /* inherit, so an open answer inside a closed section stays hidden */
+  transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-panel,
+  .chevron {
+    transition: none;
+  }
 }
 
 .answer {

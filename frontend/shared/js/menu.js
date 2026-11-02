@@ -8,7 +8,10 @@
 // Help & Support and Log Out are added automatically (Log Out sits at the bottom).
 
 const MENU_ITEMS = [
-    // { label: 'Top Up',   href: '../topup/topup.html' },
+    { label: 'My Card',  href: '../card/card.html' },
+    { label: 'Map',      href: '../map/map.html' },
+    { label: 'Tickets',  href: '../tickets/tickets.html' },
+    { label: 'Top Up',   href: '../topup/topup.html' },
     // { label: 'Settings', href: '../settings/settings.html' },
 ];
 

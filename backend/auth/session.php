@@ -9,15 +9,11 @@ if (!isset($_SESSION['email'])) {
     exit;
 }
 
-// Same connection settings as login.php / signup.php
-$dsn = 'mysql:host=localhost;dbname=hop_app_db;charset=utf8mb4';
+require_once __DIR__ . '/../db_connect.php';   // database settings live in one place
 try {
-    $pdo = new PDO($dsn, 'root', '', [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false,
-    ]);
+    $pdo = hop_pdo();
 } catch (PDOException $e) {
+    error_log('[HopApp session] Database connection failed: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['logged_in' => false, 'error' => 'Database connection failed']);
     exit;
@@ -32,6 +28,7 @@ try {
     $stmt->execute([$_SESSION['email']]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
+    error_log('[HopApp session] Database error: ' . $e->getMessage());
     echo json_encode(['logged_in' => false, 'error' => 'Database error']);
     exit;
 }
