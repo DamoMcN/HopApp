@@ -1,0 +1,335 @@
+:root {
+    --primary-color: #c7aeef;
+    --secondary-color: #cbb1f2;
+    --background-color: #ffffff;
+    --surface-color: #ecdef0;
+    --text-main: #15171c;
+    --text-muted: #747d8c;
+
+    /* Shared by logged-in pages */
+    --positive: #176b3a;      /* money in  */
+    --negative: #a93226;      /* money out */
+    --card-ink: #3d2a5c;      /* dark purple text on the Hop card */
+    --content-width: 420px;   /* max width of page content on logged-in pages */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* =========================================
+   BASE STYLES (Mobile First)
+   ========================================= */
+body {
+    background-color: var(--background-color); 
+    display: flex;
+    justify-content: center;
+    align-items: center; 
+    width: 100vw;
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding: 1rem; 
+}
+
+.logo {
+    text-align: center;
+    margin-bottom: .5em;
+}
+
+.logo img {
+    max-width: 100%;
+    height: auto;
+    max-height: 80px; 
+    object-fit: contain;
+}
+
+/* Reusable Form Components */
+.form-row {
+    display: flex;
+    flex-direction: column; 
+    gap: 0;
+}
+
+.form-group {
+    margin-bottom: 1.2rem;
+    flex: 1;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-main);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group input[type="tel"],
+.form-group input[type="date"],
+.form-group select {
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid #ced6e0;
+    border-radius: 12px;
+    font-size: 1rem;
+    background-color: #ffffff; 
+    transition: all 0.3s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.form-group select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23747d8c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+    padding-right: 2.5rem; 
+    cursor: pointer;
+}
+
+.form-group select:invalid {
+    color: var(--text-muted); 
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(199, 174, 239, 0.3);
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 1.1rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 1rem;
+    box-shadow: 0 4px 15px rgba(199, 174, 239, 0.4);
+    transition: transform 0.1s;
+}
+
+.submit-btn:active {
+    transform: scale(0.98);
+}
+
+/* Global Floating Help Button */
+.global-help-btn {
+    position: fixed;
+    top: 24px;   
+    right: 24px;
+    width: 50px;
+    height: 50px;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: 0 4px 15px rgba(199, 174, 239, 0.4);
+    z-index: 9999;
+    transition: transform 0.2s ease;
+}
+
+.global-help-btn:active {
+    transform: scale(0.9);
+}
+
+/* =========================================
+   LOGGED-IN APP PAGES (card, top up, settings, ...)
+   Add class="app-page" to <body> on these pages.
+   ========================================= */
+body.app-page {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    padding-top: 1rem;
+    gap: 1.25rem;
+}
+
+.app-header {
+    width: 100%;
+    max-width: var(--content-width);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.app-header h1 {
+    font-size: 1.2rem;
+    color: var(--text-main);
+    line-height: 1.3;
+}
+
+/* ---------- Hamburger button ---------- */
+.menu-btn {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--surface-color);
+    color: var(--text-main);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.menu-btn:active {
+    transform: scale(0.94);
+}
+
+/* ---------- Slide-out menu (built by shared/js/menu.js) ---------- */
+.menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+    z-index: 1000;
+}
+
+.menu-overlay.open {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
+}
+
+.side-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(280px, 80vw);
+    background-color: var(--background-color);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    transform: translateX(-100%);
+    visibility: hidden; /* keeps closed-menu items out of the tab order */
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.3s;
+    z-index: 1001;
+    overflow-y: auto;
+    display: flex;         
+    flex-direction: column; 
+}
+
+.side-menu.open {
+    transform: translateX(0);
+    visibility: visible;
+    transition-delay: 0s;
+}
+
+.side-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.side-menu-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.menu-close {
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: none;
+    font-size: 1.8rem;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.side-menu-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.side-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    text-align: left;
+    text-decoration: none;
+    padding: 0.9rem 1rem;
+    background-color: var(--surface-color);
+    color: var(--text-main);
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.side-menu-item:active {
+    transform: scale(0.98);
+}
+
+/* Round icon, matches the floating help button on the auth pages */
+.side-menu-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+/* for log out btn at bottom of hamburger menu */
+.side-menu-footer {
+    margin-top: auto;
+    padding-top: 1.5rem;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.side-menu-item.danger {
+    justify-content: center;
+    background-color: transparent;
+    color: var(--negative);
+    border: 2px solid var(--negative);
+}
+
+.side-menu-item.danger:active {
+    background-color: rgba(169, 50, 38, 0.1);
+}
+
+@media (min-width: 550px) {
+    .form-row {
+        flex-direction: row; 
+        gap: 1rem;
+    }
+}
+
+@media (min-width: 768px) {
+    body {
+        padding: 2rem; 
+    }
+}

@@ -1,0 +1,281 @@
+.support-app {
+  width: 100%;
+  max-width: 450px;
+  background-color: var(--background-color);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  color: var(--text-main);
+}
+
+.back {
+  background: none;
+  border: none;
+  font-size: 25px;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.back:active {
+  transform: scale(0.9);
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.rabbit {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 5px auto 12px;
+}
+
+.rabbit img {
+  width: 190px;
+  height: auto;
+  object-fit: contain;
+}
+
+h1 {
+  font-size: 1.8rem;
+  margin: 10px 0;
+  color: var(--text-main);
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin-bottom: 18px;
+  color: var(--text-main);
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* Updated to match the light purple surface color */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--surface-color);
+  border-radius: 12px;
+  padding: 0 16px;
+  margin-bottom: 25px;
+  border: none;
+}
+
+.search-box .search {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 1rem 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+/* ---------- FAQ: collapsible sections ---------- */
+
+.faq-section {
+  background-color: var(--surface-color);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.faq-section h3,
+.faq-item h4 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.faq-section-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 1.2rem 1rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.faq-section-title {
+  flex: 1;
+}
+
+.faq-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* The arrow points right when closed and turns to point down when open */
+.chevron {
+  color: var(--card-ink);
+  font-size: 1.2rem;
+  line-height: 1;
+  transition: transform 0.25s ease;
+}
+
+[aria-expanded="true"] > .chevron {
+  transform: rotate(90deg);
+}
+
+.faq-section-body {
+  padding: 0 0.6rem 0.6rem;
+}
+
+.faq-item {
+  background-color: var(--background-color);
+  border-radius: 10px;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+
+.faq-item:last-child {
+  margin-bottom: 0;
+}
+
+.faq-q {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 1rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.faq-q > span:first-child {
+  flex: 1;
+}
+
+.faq-a {
+  padding: 0 1rem 1rem;
+  line-height: 1.6;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.faq-section-btn:focus-visible,
+.faq-q:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: -3px;
+}
+
+/* Open/close animation: the panel's row grows from 0 to its natural height */
+.faq-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+
+.faq-panel.is-open {
+  grid-template-rows: 1fr;
+}
+
+.faq-panel-inner {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;   /* closed content can't be tabbed to or read out */
+  transition: visibility 0s linear 0.25s;
+}
+
+.faq-panel.is-open > .faq-panel-inner {
+  visibility: inherit;   /* inherit, so an open answer inside a closed section stays hidden */
+  transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-panel,
+  .chevron {
+    transition: none;
+  }
+}
+
+.answer {
+  background-color: var(--surface-color);
+  padding: 1.5rem;
+  border-radius: 12px;
+  line-height: 1.6;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  border: none;
+  margin-bottom: 1rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.empty {
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 0.95rem;
+  margin: 2rem 0;
+}
+
+/* Flip transition */
+.flip-container {
+  width: 100%;
+  perspective: 1200px;
+  flex-grow: 1;
+}
+
+.flip-inner {
+  position: relative;
+  width: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.flip-front,
+.flip-back {
+  width: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flip-front {
+  position: relative;
+  transform: rotateY(0deg);
+}
+
+.flip-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: rotateY(180deg);
+}
+
+#answerPage {
+  display: block;
+}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hop App - My Card</title>
+    <link rel="stylesheet" href="../shared/css/main.css">
+    <link rel="stylesheet" href="card.css">
+    <link rel="stylesheet" href="../shared/css/navbar.css">
+    <link rel="preload" as="image" href="../shared/img/HopCardTrim.webp">
+</head>
+<body class="has-bottom-nav app-page" data-nav="card">
+
+    <header class="app-header">
+        <button class="menu-btn" id="menu-btn" type="button" aria-label="Open menu">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <h1>Welcome back, <span id="user-name"></span>!</h1>
+    </header>
+
+    <!-- Card -->
+    <div class="card-container">
+        <div id="active-hop-card" class="hop-card" role="button" tabindex="0"
+             aria-haspopup="menu" aria-expanded="false" aria-controls="card-menu"
+             aria-label="Your Hop Card. Press for card actions.">
+            <span id="card-type-display" class="card-type"></span>
+            <span class="card-balance">
+                <span class="card-balance-label">Balance</span>
+                <span id="card-balance-display">&mdash;</span>
+            </span>
+            <span id="card-number-display" class="card-number"></span>
+            <div class="frozen-veil" aria-hidden="true"><span id="frozen-badge" class="frozen-badge">Frozen</span></div>
+            <div class="glare" id="glare"></div>
+        </div>
+
+        <!-- Drop-down of card actions. Opened by pressing the card; the items are built by card.js -->
+        <div id="card-menu" class="card-menu" role="menu" aria-label="Card actions"></div>
+    </div>
+    <p id="card-message" class="card-message" role="status" aria-live="polite"></p>
+
+    <!-- Transactions -->
+    <section class="transactions" aria-labelledby="tx-heading">
+        <h2 id="tx-heading">Transactions</h2>
+        <p id="transaction-status" class="transaction-status">Loading&hellip;</p>
+        <ul id="transaction-list" class="transaction-list"></ul>
+    </section>
+
+    <!-- Confirm before reporting the card lost or stolen (this can't be undone) -->
+    <dialog id="report-dialog" class="report-dialog" aria-labelledby="report-title">
+        <h2 id="report-title">Report card</h2>
+        <p id="report-text"></p>
+        <p id="report-error" class="report-error" role="alert" hidden></p>
+        <button id="report-confirm" class="report-confirm" type="button">Report</button>
+        <button id="report-cancel" class="report-cancel" type="button">Cancel</button>
+    </dialog>
+
+    <script src="../shared/js/menu.js"></script>
+    <script src="../shared/js/navbar.js"></script>
+    <script src="card.js"></script>
+    <script src="../shared/js/prefetch.js" data-stage="home" defer></script>
+</body>
+</html>
