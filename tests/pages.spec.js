@@ -2,22 +2,31 @@
 const { test, expect } = require('@playwright/test');
 
 test('Registration page loads successfully', async ({ page }) => {
+HEAD
   await page.goto('/frontend/auth/signup.html');
 
+  const response = await page.goto('/frontend/auth/signup.html');
+
+  expect(response.status()).toBe(200);
   await expect(page.locator('#first-name')).toBeVisible();
   await expect(page.locator('#last-name')).toBeVisible();
 });
 
 test('Login page loads successfully', async ({ page }) => {
+HEAD
   await page.goto('/frontend/auth/index.html');
 
-  await expect(page.locator('body')).toBeVisible();
+  const response = await page.goto('/frontend/auth/index.html');
+
+  expect(response.status()).toBe(200);
+  await expect(page.locator('#login-form')).toBeVisible();
 });
 
 test('Support page loads successfully', async ({ page }) => {
-  await page.goto('/frontend/support/support.html');
+  const response = await page.goto('/frontend/support/support.html');
 
-  await expect(page.locator('body')).toBeVisible();
+  expect(response.status()).toBe(200);
+  await expect(page.getByRole('heading', { name: 'Help & Support' })).toBeVisible();
 });
 
 
