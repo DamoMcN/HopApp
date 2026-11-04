@@ -2,7 +2,7 @@
 const { test, expect } = require('@playwright/test');
 
 test('Registration page loads successfully', async ({ page }) => {
-HEAD
+
   await page.goto('/frontend/auth/signup.html');
 
   const response = await page.goto('/frontend/auth/signup.html');
@@ -13,7 +13,7 @@ HEAD
 });
 
 test('Login page loads successfully', async ({ page }) => {
-HEAD
+
   await page.goto('/frontend/auth/index.html');
 
   const response = await page.goto('/frontend/auth/index.html');
