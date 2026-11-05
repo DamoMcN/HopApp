@@ -29,7 +29,7 @@ async function loadCard() {
         document.getElementById('card-type-display').textContent = data.card_type || 'Adult';
 
         renderCardStatus(data.card_status || 'active');
-        
+        renderCardExpiry(data.card_expiry);
 
         // 12345678 -> "1234 5678" (older 16-digit numbers also still format fine)
         if (data.card_number) {
@@ -48,6 +48,56 @@ async function loadCard() {
     } catch (error) {
         console.error('Failed to load session data:', error);
         return false;
+    }
+}
+
+// =========================================
+//  Card expiry
+// =========================================
+
+const EXPIRY_WARNING_DAYS = 30;   // start warning this many days before expiry
+
+// "2031-11-30" -> Date at local midnight, or null if missing or not a real date
+function parseExpiry(value) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+    if (!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return d.getMonth() === Number(m[2]) - 1 ? d : null;
+}
+
+function renderCardExpiry(value) {
+    const face = document.getElementById('card-expiry-display');
+    const note = document.getElementById('card-expiry-note');
+    const expiry = parseExpiry(value);
+
+    note.className = 'card-expiry-note';
+
+    if (!expiry) {
+        face.textContent = '\u2014';
+        note.textContent = "Your card's expiry date isn't available right now.";
+        note.classList.add('unknown');
+        return;
+    }
+
+    // Short form on the card face, like a bank card: 11/31
+    face.textContent = String(expiry.getMonth() + 1).padStart(2, '0') + '/' +
+                       String(expiry.getFullYear()).slice(-2);
+
+    const longDate = expiry.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const daysLeft = Math.round((expiry - today) / 86400000);
+
+    if (daysLeft < 0) {
+        note.textContent = 'Your card expired on ' + longDate + '. Please renew it to keep travelling.';
+        note.classList.add('expired');
+    } else if (daysLeft <= EXPIRY_WARNING_DAYS) {
+        note.textContent = 'Your card expires on ' + longDate +
+            (daysLeft === 0 ? ' (today)' : ' (in ' + daysLeft + (daysLeft === 1 ? ' day' : ' days') + ')') +
+            '. Renew it soon.';
+        note.classList.add('soon');
+    } else {
+        note.textContent = 'Card valid until ' + longDate + '.';
     }
 }
 

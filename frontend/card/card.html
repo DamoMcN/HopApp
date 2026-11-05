@@ -34,6 +34,10 @@
                 <span id="card-balance-display">&mdash;</span>
             </span>
             <span id="card-number-display" class="card-number"></span>
+            <span class="card-expiry">
+                <span class="card-expiry-label">Valid until</span>
+                <span id="card-expiry-display">&mdash;</span>
+            </span>
             <div class="frozen-veil" aria-hidden="true"><span id="frozen-badge" class="frozen-badge">Frozen</span></div>
             <div class="glare" id="glare"></div>
         </div>
@@ -41,6 +45,7 @@
         <!-- Drop-down of card actions. Opened by pressing the card; the items are built by card.js -->
         <div id="card-menu" class="card-menu" role="menu" aria-label="Card actions"></div>
     </div>
+    <p id="card-expiry-note" class="card-expiry-note"></p>
     <p id="card-message" class="card-message" role="status" aria-live="polite"></p>
 
     <!-- Transactions -->
