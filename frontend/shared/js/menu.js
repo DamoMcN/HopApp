@@ -12,6 +12,7 @@ const MENU_ITEMS = [
     { label: 'Map',      href: '../map/map.html' },
     { label: 'Tickets',  href: '../tickets/tickets.html' },
     { label: 'Top Up',   href: '../topup/topup.html' },
+    { label: 'Recurring Top Up', href: '../recurring/recurring.html' },
     // { label: 'Settings', href: '../settings/settings.html' },
 ];
 

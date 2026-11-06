@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hop App - Recurring Top Up</title>
+    <link rel="stylesheet" href="../shared/css/main.css">
+    <!-- Re-uses the Top Up page styles (panels, buttons, bottom sheet) -->
+    <link rel="stylesheet" href="../topup/topup.css">
+    <link rel="stylesheet" href="recurring.css">
+    <link rel="stylesheet" href="../shared/css/navbar.css">
+</head>
+<body class="has-bottom-nav app-page" data-nav="topup">
+
+    <header class="app-header">
+        <button class="menu-btn" id="menu-btn" type="button" aria-label="Open menu">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <h1>Recurring top up</h1>
+    </header>
+
+    <main class="topup">
+        <p class="balance-line">
+            Current balance <strong id="balance-display">&mdash;</strong>
+        </p>
+
+        <!-- 1. Shown when the user already has a recurring top up -->
+        <section id="summary" class="panel" hidden>
+            <h2>Your recurring top up <span id="status" class="status"></span></h2>
+            <p class="summary-amount"><strong id="summary-amount"></strong> <span id="summary-interval"></span></p>
+            <dl class="sheet-rows">
+                <div><dt>Next top up</dt><dd id="summary-next"></dd></div>
+                <div><dt>Pay with</dt><dd id="summary-pay"></dd></div>
+            </dl>
+            <button id="toggle-btn" class="submit-btn" type="button"></button>
+            <button id="change-btn" class="secondary-btn" type="button">Change</button>
+            <button id="cancel-btn" class="secondary-btn danger" type="button">Cancel recurring top up</button>
+        </section>
+
+        <!-- 2. Set up a new one, or change the existing one -->
+        <form id="setup-form" hidden>
+            <fieldset class="panel">
+                <legend>Amount each time</legend>
+                <div class="options four">
+                    <label><input type="radio" name="amount" value="500"><span>&euro;5</span></label>
+                    <label><input type="radio" name="amount" value="1000"><span>&euro;10</span></label>
+                    <label><input type="radio" name="amount" value="2000"><span>&euro;20</span></label>
+                    <label><input type="radio" name="amount" value="5000"><span>&euro;50</span></label>
+                </div>
+            </fieldset>
+
+            <fieldset class="panel">
+                <legend>How often</legend>
+                <div class="options three">
+                    <label><input type="radio" name="interval" value="weekly"><span>Every week</span></label>
+                    <label><input type="radio" name="interval" value="fortnightly"><span>Every 2 weeks</span></label>
+                    <label><input type="radio" name="interval" value="monthly"><span>Every month</span></label>
+                </div>
+            </fieldset>
+
+            <fieldset class="panel">
+                <legend>First top up</legend>
+                <input id="start-date" class="date-input" type="date">
+                <p id="schedule-hint" class="hint"></p>
+            </fieldset>
+
+            <fieldset class="panel">
+                <legend>Pay with</legend>
+                <div id="pay-list" class="card-list"></div>
+                <p class="hint">To add a card, use + Add demo card on the Top Up page.</p>
+            </fieldset>
+
+            <button class="submit-btn" type="submit">Review</button>
+        </form>
+
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+
+        <a class="back-link" href="../topup/topup.html">&larr; Back to Top Up</a>
+    </main>
+
+    <!-- Review sheet: shows the settings before saving, then the confirmation -->
+    <dialog id="review-dialog" class="wallet-dialog" aria-labelledby="review-title">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <h2 id="review-title">Check your recurring top up</h2>
+
+        <!-- Step 1: review -->
+        <div id="review-step" class="sheet-view">
+            <dl class="sheet-rows">
+                <div><dt>Amount</dt><dd id="review-amount"></dd></div>
+                <div><dt>How often</dt><dd id="review-interval"></dd></div>
+                <div><dt>First top up</dt><dd id="review-start"></dd></div>
+                <div><dt>Pay with</dt><dd id="review-pay"></dd></div>
+            </dl>
+            <p id="review-error" class="message err"></p>
+            <button id="confirm-btn" class="submit-btn" type="button">Confirm</button>
+            <button id="edit-btn" class="secondary-btn" type="button">Edit</button>
+        </div>
+
+        <!-- Step 2: confirmation -->
+        <div id="done-step" class="sheet-view sheet-status" hidden>
+            <div class="status-mark ok" aria-hidden="true">&check;</div>
+            <p id="done-text"></p>
+            <button id="done-btn" class="submit-btn" type="button">Done</button>
+        </div>
+    </dialog>
+
+    <!-- Cancel confirmation -->
+    <dialog id="cancel-dialog" class="cancel-dialog" aria-labelledby="cancel-title">
+        <h2 id="cancel-title">Cancel recurring top up?</h2>
+        <p>No more money will be added automatically. Top ups already made stay on your card.</p>
+        <button id="cancel-yes" class="submit-btn danger-fill" type="button">Yes, cancel it</button>
+        <button id="cancel-no" class="secondary-btn" type="button">Keep it</button>
+    </dialog>
+
+    <script src="../shared/js/menu.js"></script>
+    <script src="../shared/js/navbar.js"></script>
+    <script src="recurring.js"></script>
+</body>
+</html>

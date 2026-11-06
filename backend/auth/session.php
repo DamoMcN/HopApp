@@ -19,6 +19,18 @@ try {
     exit;
 }
 
+// Add any recurring top ups that are due, so the balance below includes them.
+// A problem here is only logged: it must not stop the card page from loading.
+require_once __DIR__ . '/recurring_lib.php';
+try {
+    $stmt = $pdo->prepare('SELECT user_id FROM users WHERE email = ?');
+    $stmt->execute([$_SESSION['email']]);
+    $userId = $stmt->fetchColumn();
+    if ($userId) recurring_run_due($pdo, (int) $userId);
+} catch (Throwable $e) {
+    error_log('[HopApp session] Recurring top ups failed: ' . $e->getMessage());
+}
+
 // Read fresh values from the database so the balance is always current
 try {
     $stmt = $pdo->prepare(
