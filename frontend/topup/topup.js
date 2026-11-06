@@ -366,5 +366,32 @@ walletDialog.addEventListener('cancel', (e) => {
     if (!$('wallet-processing').hidden) e.preventDefault();
 });
 
+// =========================================
+//  Recurring top up link at the bottom of the page
+// =========================================
+
+// Shows "€5.00 every week, next on ..." if the person already has a recurring
+// top up, otherwise keeps the "Set up a recurring payment today" button.
+async function loadRecurringStatus() {
+    try {
+        const response = await fetch('../../backend/auth/recurring.php', { cache: 'no-store' });
+        const data = await response.json();
+        const r = data.recurring;
+        if (!r) return;
+
+        const [y, m, d] = r.next_run_date.split('-').map(Number);
+        const next = new Date(y, m - 1, d).toLocaleDateString('en-IE', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        $('recurring-status').textContent = r.enabled
+            ? money.format(r.amount) + ' ' + r.interval_label.toLowerCase() + '. Next top up: ' + next + '.'
+            : money.format(r.amount) + ' ' + r.interval_label.toLowerCase() + ' is turned off.';
+        $('recurring-link').textContent = 'Manage recurring top up';
+    } catch (error) {
+        // The button still works, it just keeps its default text
+        console.error('Could not load recurring top up status:', error);
+    }
+}
+
 setAmount(state.amountCents / 100);   // draws the dial and sets the button label
 load();
+loadRecurringStatus();

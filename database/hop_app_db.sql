@@ -39,6 +39,29 @@ CREATE TABLE IF NOT EXISTS `favourite_routes` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `recurring_topups`
+-- One recurring top up per user (see recurring_topups_migration.sql).
+--
+
+DROP TABLE IF EXISTS `recurring_topups`;
+CREATE TABLE IF NOT EXISTS `recurring_topups` (
+  `recurring_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `interval_type` enum('weekly','fortnightly','monthly') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `card_id` int DEFAULT NULL,
+  `start_date` date NOT NULL,
+  `next_run_date` date NOT NULL,
+  `enabled` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`recurring_id`),
+  UNIQUE KEY `unique_user_recurring` (`user_id`),
+  KEY `card_id` (`card_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `saved_cards`
 -- Brand + last 4 only. Never store full card numbers.
 --
@@ -147,6 +170,13 @@ CREATE TABLE IF NOT EXISTS `users` (
 --
 ALTER TABLE `favourite_routes`
   ADD CONSTRAINT `favourite_routes_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `recurring_topups`
+--
+ALTER TABLE `recurring_topups`
+  ADD CONSTRAINT `recurring_topups_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `recurring_topups_ibfk_2` FOREIGN KEY (`card_id`) REFERENCES `saved_cards` (`card_id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `saved_cards`

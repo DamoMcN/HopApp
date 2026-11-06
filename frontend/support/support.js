@@ -59,6 +59,18 @@ const faqSections = [
       {
         question: "Where can I see my top ups?",
         answer: "Your balance updates straight away. Every top up is listed under Transactions on your card page."
+      },
+      {
+        question: "How do I set up a recurring top up?",
+        answer: "On the Top Up page, press Set up a recurring payment today (or choose Recurring Top Up in the menu). Pick an amount, how often, the day of the first top up and how to pay, then press Review and Confirm."
+      },
+      {
+        question: "How do I change, turn off or cancel a recurring top up?",
+        answer: "Open Recurring Top Up from the menu. Press Turn off or Turn on, press Change to pick a new amount, interval or date, or press Cancel recurring top up to remove it. Top ups already made stay on your card."
+      },
+      {
+        question: "When is a recurring top up added?",
+        answer: "On each payment day. Automatic top ups show as Auto top up under Transactions. While your card is frozen or the recurring top up is turned off, nothing is charged."
       }
     ]
   },
