@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `l_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `card_number` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
   `card_status` enum('active','frozen','reported_lost','reported_stolen') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `card_expiry` date DEFAULT NULL COMMENT 'Last day the card is valid: one year after created_at. NULL = not known.',
   `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `phone_number` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
