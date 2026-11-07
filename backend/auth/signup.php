@@ -106,8 +106,11 @@ try {
 
 // ---------- Insert ----------
 $sql = 'INSERT INTO users
-            (f_name, l_name, card_number, phone_number, nationality, email, password_hash, dob, is_student, card_type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+            (f_name, l_name, card_number, card_expiry, phone_number, nationality, email, password_hash, dob, is_student, card_type)
+        VALUES (?, ?, ?, DATE_ADD(CURRENT_DATE, INTERVAL 1 YEAR), ?, ?, ?, ?, ?, ?, ?)';
+// A new card is valid for exactly one year from the day it is created
+// (created 5 Nov 2026 -> expires 5 Nov 2027). The database works the date out
+// so it always matches created_at.
 
 try {
     $stmt = $pdo->prepare($sql);
