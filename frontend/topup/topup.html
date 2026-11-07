@@ -52,7 +52,7 @@
         <section class="panel" aria-labelledby="pay-heading">
             <h2 id="pay-heading">Pay with</h2>
             <div id="card-list" class="card-list"></div>
-            <button id="add-card-btn" class="secondary-btn" type="button">+ Add demo card</button>
+            <button id="new-card-btn" class="secondary-btn" type="button">+ Pay with a new card</button>
         </section>
 
         <p id="message" class="message" role="status" aria-live="polite"></p>
@@ -112,6 +112,43 @@
             <button id="wallet-retry" class="submit-btn" type="button">Try again</button>
             <button id="wallet-close" class="secondary-btn" type="button">Close</button>
         </div>
+    </dialog>
+
+    <!-- Pay with a new card. The autocomplete="cc-..." names let the browser or phone
+         offer the person's own saved cards. The full number and CVC are never sent to
+         our server: topup.js sends only brand, last 4 digits and expiry. -->
+    <dialog id="card-dialog" class="wallet-dialog" aria-labelledby="card-title">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <form id="card-form" class="card-form" method="dialog" novalidate>
+            <h2 id="card-title">Pay with a new card</h2>
+            <div class="form-group">
+                <label for="cc-name">Name on card</label>
+                <input type="text" id="cc-name" autocomplete="cc-name" required>
+            </div>
+            <div class="form-group">
+                <label for="cc-number">Card number</label>
+                <input type="text" id="cc-number" autocomplete="cc-number" inputmode="numeric"
+                       placeholder="1234 5678 9012 3456" maxlength="23" required>
+            </div>
+            <div class="form-row card-form-row">
+                <div class="form-group">
+                    <label for="cc-exp">Expiry</label>
+                    <input type="text" id="cc-exp" autocomplete="cc-exp" inputmode="numeric"
+                           placeholder="MM/YY" maxlength="5" required>
+                </div>
+                <div class="form-group">
+                    <label for="cc-csc">CVC</label>
+                    <input type="text" id="cc-csc" autocomplete="cc-csc" inputmode="numeric"
+                           placeholder="123" maxlength="4" required>
+                </div>
+            </div>
+            <label class="save-card">
+                <input type="checkbox" id="cc-save" checked> Save this card for future top ups
+            </label>
+            <p id="card-error" class="message err" role="alert"></p>
+            <button id="card-pay" class="submit-btn" type="submit">Pay</button>
+            <button id="card-cancel" class="secondary-btn" type="button">Cancel</button>
+        </form>
     </dialog>
 
     <script src="../shared/js/menu.js"></script>
