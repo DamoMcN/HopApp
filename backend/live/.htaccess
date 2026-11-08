@@ -1,0 +1,4 @@
+# Keep secrets and server files out of the browser (needs Apache's .htaccess switched on, the WAMP default)
+<FilesMatch "^(\.env.*|package(-lock)?\.json|server\.js|.*\.log)$">
+    Require all denied
+</FilesMatch>

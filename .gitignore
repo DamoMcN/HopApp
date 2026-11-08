@@ -2,5 +2,10 @@
 node_modules/
 test-results/
 playwright-report/
-frontend/map/data/
+# Map data: the small split files (index.json, geo-*.json) ARE committed so everyone gets the routes.
+# Only the huge source files stay out of git.
+frontend/map/data/routes.geojson
+frontend/map/data/routes.sample.geojson
 .env
+backend/live/config.local.php
+backend/live/live-error.log

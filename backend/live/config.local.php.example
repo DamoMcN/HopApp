@@ -1,0 +1,6 @@
+<?php
+// Copy this file to config.local.php and put your National Transport Authority (NTA) API key in it.
+// config.local.php is git-ignored. Never commit your key or paste it into chat.
+return [
+    'nta_api_key' => 'put-your-key-here',
+];
