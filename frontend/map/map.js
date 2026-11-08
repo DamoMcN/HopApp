@@ -7,7 +7,7 @@
 
 // If the live bus file is hosted online (for example on Azure), put its address here, such as
 // 'https://hop-live.azurewebsites.net/vehicles.php'. Leave it empty to use the copy on your own WAMP.
-const HOSTED_LIVE_URL = '';
+const HOSTED_LIVE_URL = 'https://hopapp.onrender.com/api/vehicles';
 
 const CONFIG = {
     // Route data made by build-data.js (big, so it is not stored in git). See the README.
