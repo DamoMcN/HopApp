@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hop App - Settings</title>
+    <link rel="stylesheet" href="../shared/css/main.css">
+    <link rel="stylesheet" href="setting.css?v=20261105-account-settings">
+</head>
+<body class="app-page">
+    <header class="app-header">
+        <button class="menu-btn" id="menu-btn" type="button" aria-label="Open menu">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <h1>Settings</h1>
+    </header>
+
+    <main class="settings-page">
+        <p id="settings-message" class="settings-message" role="status" aria-live="polite"></p>
+
+        <section class="settings-panel" aria-labelledby="profile-heading">
+            <h2 id="profile-heading">User profile</h2>
+            <p class="settings-intro">Your account details.</p>
+            <dl class="profile-details">
+                <div><dt>Name</dt><dd id="profile-name">Loading…</dd></div>
+                <div><dt>Email</dt><dd id="profile-email">Loading…</dd></div>
+                <div><dt>Card type</dt><dd id="profile-card-type">Loading…</dd></div>
+            </dl>
+            <p class="settings-help">To change your name or email, contact Help &amp; Support.</p>
+        </section>
+
+        <section class="settings-panel" aria-labelledby="card-heading">
+            <h2 id="card-heading">Card settings</h2>
+            <p class="settings-intro">Freeze your card temporarily. You can unfreeze it here later.</p>
+            <p class="card-status-line">Card status: <strong id="card-status">Loading…</strong></p>
+            <button id="card-status-button" class="settings-button" type="button" disabled>Freeze card</button>
+        </section>
+
+        <section class="settings-panel" aria-labelledby="topup-heading">
+            <h2 id="topup-heading">Top-up</h2>
+            <p class="settings-intro">Choose which saved card to use for automatic top up.</p>
+            <label class="settings-field" for="auto-topup-card">Saved card</label>
+            <select id="auto-topup-card" class="settings-select" disabled>
+                <option value="">Loading saved cards…</option>
+            </select>
+            <label class="settings-field" for="auto-topup-amount">Amount to add</label>
+            <select id="auto-topup-amount" class="settings-select" disabled>
+                <option value="">Loading amounts…</option>
+            </select>
+            <label class="auto-topup-option">
+                <input id="auto-topup-enabled" type="checkbox" disabled>
+                <span>Automatically add this amount when my balance falls below €1</span>
+            </label>
+            <p class="settings-help">Automatic top up checks when you open or refresh an app page. It does not run in the background. Your choice is saved to your account.</p>
+            <p id="auto-topup-message" class="settings-message" role="status" aria-live="polite"></p>
+        </section>
+    </main>
+
+    <script src="../shared/js/menu.js?v=20261105-account-settings"></script>
+    <script src="setting.js?v=20261105-account-settings"></script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+.settings-page {
+    width: 100%;
+    max-width: var(--content-width);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-bottom: 2rem;
+}
+
+.settings-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.1rem;
+    background: var(--surface-color);
+    border-radius: 14px;
+}
+
+.settings-panel h2 {
+    color: var(--text-main);
+    font-size: 1.05rem;
+}
+
+.settings-intro,
+.settings-help {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.profile-details {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+}
+
+.profile-details div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid rgba(61, 42, 92, 0.12);
+}
+
+.profile-details div:last-child {
+    border-bottom: 0;
+}
+
+.profile-details dt {
+    color: var(--text-muted);
+}
+
+.profile-details dd {
+    margin: 0;
+    color: var(--text-main);
+    font-weight: 600;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.card-status-line {
+    color: var(--text-main);
+}
+
+.settings-field {
+    color: var(--text-main);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.settings-select {
+    width: 100%;
+    padding: 0.85rem 0.9rem;
+    border: 1px solid rgba(61, 42, 92, 0.2);
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--text-main);
+    font: inherit;
+}
+
+.auto-topup-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    color: var(--text-main);
+    font-weight: 600;
+    line-height: 1.45;
+    cursor: pointer;
+}
+
+.auto-topup-option input {
+    width: 1.15rem;
+    height: 1.15rem;
+    flex: 0 0 auto;
+    margin-top: 0.15rem;
+    accent-color: var(--card-ink);
+}
+
+.settings-button {
+    width: 100%;
+    padding: 0.85rem;
+    border: 2px solid var(--card-ink);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--card-ink);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.settings-button:disabled,
+.settings-select:disabled,
+.auto-topup-option input:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.settings-message {
+    min-height: 1.2em;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.settings-message:empty {
+    display: none;
+}
+
+.settings-message.err {
+    color: var(--negative);
+    font-weight: 600;
+}
+
+.settings-message.ok {
+    color: var(--positive);
+    font-weight: 600;
+}
