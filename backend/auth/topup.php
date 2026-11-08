@@ -2,8 +2,14 @@
 // Wallet top up.
 //
 //   GET  topup.php                         -> saved cards, balance, payments mode
-//   POST topup.php {action:"add_card"}     -> save a demo card (brand + last 4 only)
 //   POST topup.php {action:"top_up", ...}  -> add money to users.wallet_balance
+//        source "saved_card" | "new_card" | "wallet_demo". With "new_card" and
+//        save:true the card is saved for next time.
+//   POST topup.php {action:"remove_card", card_id}  -> delete one of the user's saved cards
+//
+// The full card number and CVC never reach this server: the browser sends only
+// brand, last 4 digits and expiry. A real provider (e.g. Stripe) would take the
+// card details itself and give back a token for provider_payment_method_id.
 //
 // PAYMENTS_MODE is 'mock': no payment provider is contacted and no real money
 // moves. A real provider (e.g. Stripe test mode) would be added inside
@@ -17,12 +23,7 @@ const PAYMENTS_MODE = 'mock';
 const MIN_CENTS     = 100;     // EUR 1.00
 const MAX_CENTS     = 50000;   // EUR 500.00
 
-// Demo cards offered by "add card". Brand + last 4 only, a full card number is never stored.
-const DEMO_CARDS = [
-    ['brand' => 'Visa',       'last4' => '4242'],
-    ['brand' => 'Mastercard', 'last4' => '4444'],
-    ['brand' => 'Amex',       'last4' => '0005'],
-];
+const CARD_BRANDS = ['Visa', 'Mastercard', 'Amex'];
 
 function respond(array $data, int $status = 200): void {
     http_response_code($status);
@@ -55,11 +56,17 @@ $userId = (int) $user['user_id'];
 
 function saved_cards(PDO $pdo, int $userId): array {
     $stmt = $pdo->prepare(
-        'SELECT card_id, brand, last4 FROM saved_cards WHERE user_id = ? ORDER BY card_id'
+        'SELECT card_id, brand, last4, exp_month, exp_year FROM saved_cards WHERE user_id = ? ORDER BY card_id'
     );
     $stmt->execute([$userId]);
     return array_map(function ($r) {
-        return ['id' => (int) $r['card_id'], 'brand' => $r['brand'], 'last4' => $r['last4']];
+        return [
+            'id'        => (int) $r['card_id'],
+            'brand'     => $r['brand'],
+            'last4'     => $r['last4'],
+            'exp_month' => $r['exp_month'] === null ? null : (int) $r['exp_month'],
+            'exp_year'  => $r['exp_year'] === null ? null : (int) $r['exp_year'],
+        ];
     }, $stmt->fetchAll());
 }
 
@@ -109,23 +116,23 @@ if (!is_array($body)) {
 
 $action = $body['action'] ?? '';
 
-// ---------- POST add_card ----------
-if ($action === 'add_card') {
+// ---------- POST remove_card ----------
+if ($action === 'remove_card') {
+    $cardId = $body['card_id'] ?? null;
+    if (!is_int($cardId)) {
+        respond(['success' => false, 'error' => 'Choose a card to remove'], 400);
+    }
     try {
-        $have = [];
-        foreach (saved_cards($pdo, $userId) as $c) {
-            $have[$c['brand'] . $c['last4']] = true;
+        // user_id in the WHERE: people can only remove their own cards
+        $del = $pdo->prepare('DELETE FROM saved_cards WHERE card_id = ? AND user_id = ?');
+        $del->execute([$cardId, $userId]);
+        if ($del->rowCount() === 0) {
+            respond(['success' => false, 'error' => 'Saved card not found'], 404);
         }
-        foreach (DEMO_CARDS as $demo) {
-            if (isset($have[$demo['brand'] . $demo['last4']])) continue;
-            $ins = $pdo->prepare('INSERT INTO saved_cards (user_id, brand, last4) VALUES (?, ?, ?)');
-            $ins->execute([$userId, $demo['brand'], $demo['last4']]);
-            respond(['success' => true, 'cards' => saved_cards($pdo, $userId)]);
-        }
-        respond(['success' => false, 'error' => 'All demo cards are already saved'], 409);
+        respond(['success' => true, 'cards' => saved_cards($pdo, $userId)]);
     } catch (PDOException $e) {
-        error_log('[HopApp topup] Could not save card: ' . $e->getMessage());
-        respond(['success' => false, 'error' => 'Could not save card'], 500);
+        error_log('[HopApp topup] Could not remove card: ' . $e->getMessage());
+        respond(['success' => false, 'error' => 'Could not remove the card'], 500);
     }
 }
 
@@ -160,6 +167,20 @@ if ($source === 'saved_card') {
     if (!$card) {
         respond(['success' => false, 'error' => 'Saved card not found'], 404);
     }
+} elseif ($source === 'new_card') {
+    // Only brand, last 4 and expiry are used. Anything else in the request is ignored.
+    $c = $body['card'] ?? null;
+    $month = is_array($c) ? ($c['exp_month'] ?? null) : null;
+    $year  = is_array($c) ? ($c['exp_year'] ?? null) : null;
+    $thisYear = (int) date('Y');
+    if (!is_array($c) || !in_array($c['brand'] ?? '', CARD_BRANDS, true)
+        || !is_string($c['last4'] ?? null) || !preg_match('/^\d{4}$/', $c['last4'])
+        || !is_int($month) || $month < 1 || $month > 12
+        || !is_int($year) || $year > $thisYear + 20
+        || $year * 100 + $month < (int) date('Ym')) {
+        respond(['success' => false, 'error' => 'Check your card details'], 400);
+    }
+    $card = ['brand' => $c['brand'], 'last4' => $c['last4'], 'exp_month' => $month, 'exp_year' => $year];
 } elseif ($source === 'wallet_demo') {
     if (PAYMENTS_MODE !== 'mock') {
         respond(['success' => false, 'error' => 'The demo wallet is only available in mock mode'], 400);
@@ -196,6 +217,16 @@ try {
     $upd = $pdo->prepare('UPDATE users SET wallet_balance = wallet_balance + ? WHERE user_id = ?');
     $upd->execute([$amount, $userId]);
 
+    // "Save this card" ticked: keep it for next time (same card again just updates the expiry)
+    $saved = $source === 'new_card' && ($body['save'] ?? false) === true;
+    if ($saved) {
+        $save = $pdo->prepare(
+            'INSERT INTO saved_cards (user_id, brand, last4, exp_month, exp_year) VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE exp_month = VALUES(exp_month), exp_year = VALUES(exp_year)'
+        );
+        $save->execute([$userId, $card['brand'], $card['last4'], $card['exp_month'], $card['exp_year']]);
+    }
+
     $pdo->commit();
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
@@ -207,4 +238,10 @@ try {
     respond(['success' => false, 'error' => 'Top up failed, you have not been charged'], 500);
 }
 
-respond(['success' => true, 'replayed' => false, 'balance' => current_balance($pdo, $userId)]);
+respond([
+    'success'    => true,
+    'replayed'   => false,
+    'balance'    => current_balance($pdo, $userId),
+    'card_saved' => $saved,
+    'cards'      => saved_cards($pdo, $userId),
+]);
