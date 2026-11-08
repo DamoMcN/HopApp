@@ -19,7 +19,7 @@ This branch (`feature/card`) builds on the authentication and support modules wi
 - **Get help** from collapsible FAQ sections (Login & Sign up, Top Up, My Card, Lost or stolen cards).
 
 ### Payments are in demo mode
-`PAYMENTS_MODE` in `backend/auth/topup.php` is `'mock'`. **No real payment provider is contacted and no real money moves.** "Add demo card" only stores a card brand and last 4 digits (never a full card number), and "Pay with wallet (demo)" is a clearly labelled simulated wallet sheet (it deliberately does not copy Apple Pay or Google Pay branding). `charge_payment()` is the single place a real provider (for example Stripe in test mode) would be added later.
+`PAYMENTS_MODE` in `backend/auth/topup.php` is `'mock'`. **No real payment provider is contacted and no real money moves.** "Pay with a new card" lets people type in (or autofill) their own card; only the brand, last 4 digits and expiry are sent and saved (never the full number or CVC), and "Pay with wallet (demo)" is a clearly labelled simulated wallet sheet (it deliberately does not copy Apple Pay or Google Pay branding). `charge_payment()` is the single place a real provider (for example Stripe in test mode) would be added later.
 
 ---
 
@@ -44,7 +44,7 @@ This branch (`feature/card`) builds on the authentication and support modules wi
 - **`card.html` / `card.css` / `card.js`**: Shows the card with balance and number, the transactions list, and the card actions drop-down. Frozen, lost and stolen cards show a status veil and the menu adapts to the card's state. The page refreshes the balance whenever it is shown (including when returning with the browser back button).
 
 #### 4. `frontend/topup/` (Top Up)
-- **`topup.html` / `topup.css` / `topup.js`**: A circular dial slider (drag, tap or use the arrow keys), saved-card list, "Add demo card", and the demo wallet confirmation sheet. Each top-up attempt carries an idempotency key, so a retry after a dropped connection can never credit the money twice.
+- **`topup.html` / `topup.css` / `topup.js`**: A circular dial slider (drag, tap or use the arrow keys), saved-card list (with Remove), a "Pay with a new card" form with "Save this card", and the demo wallet confirmation sheet. Each top-up attempt carries an idempotency key, so a retry after a dropped connection can never credit the money twice.
 
 #### 5. `frontend/support/` (Help & Support)
 - **`support.html` / `support.css` / `support.js`**: Collapsible FAQ sections with an accordion for each question, a search box that searches section names, questions and answers (matches open automatically), and a Contact Support page that flips in. To add questions, edit the `faqSections` list at the top of `support.js`.
@@ -80,6 +80,7 @@ Server-side rules worth knowing:
 If you already have a `hop_app_db` from an earlier branch, run these once in phpMyAdmin (SQL tab), in this order, instead of importing the full dump:
 1. `database/topup_migration.sql`
 2. `database/card_reports_migration.sql`
+3. `database/saved_cards_migration.sql` (adds card expiry to saved cards)
 
 Skipping the second one means **Report stolen / Report lost will fail**.
 

@@ -476,3 +476,44 @@
     .check-path { animation: none; stroke-dashoffset: 0; }
 }
 
+
+
+/* ---------- Saved card: remove button ---------- */
+
+.saved-card span { flex: 1; }
+.saved-card small { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-muted); }
+
+.remove-card {
+    padding: 0.3rem 0.7rem;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.remove-card.confirm {
+    background-color: var(--negative);
+    color: #ffffff;
+}
+
+/* ---------- Pay with a new card ---------- */
+
+.card-form { display: flex; flex-direction: column; }
+.card-form h2 { font-size: 1.25rem; margin-bottom: 1rem; }
+.card-form .form-group { margin-bottom: 0.9rem; }
+.card-form-row { flex-direction: row; gap: 0.75rem; }
+.card-form .secondary-btn { margin-top: 0.6rem; }
+.card-form .message:empty { display: none; }
+
+.save-card {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+    font-size: 0.95rem;
+}
+
+.save-card input { width: 1.1rem; height: 1.1rem; accent-color: var(--card-ink); }

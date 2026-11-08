@@ -46,7 +46,7 @@ const faqSections = [
       },
       {
         question: "How do I save a card?",
-        answer: "On the Top Up page, press + Add demo card. Only the card type and the last 4 digits are saved, never the full card number."
+        answer: "On the Top Up page, press + Pay with a new card, enter your card and keep Save this card for future top ups ticked. Only the card type, the last 4 digits and the expiry are saved, never the full card number or CVC. To remove a saved card, press Remove next to it."
       },
       {
         question: "What is Pay with wallet (demo)?",

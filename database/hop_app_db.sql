@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS `saved_cards` (
   `user_id` int NOT NULL,
   `brand` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `last4` char(4) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `exp_month` tinyint DEFAULT NULL,
+  `exp_year` smallint DEFAULT NULL,
   `provider_payment_method_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`card_id`),
