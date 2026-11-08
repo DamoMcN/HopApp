@@ -31,8 +31,10 @@ if (!API_KEY) {
     if (/["'\s]/.test(API_KEY)) problems.push('contains quotes or spaces');
     if (/[^\x21-\x7e]/.test(API_KEY)) problems.push('contains hidden or non-standard characters');
     if (API_KEY === 'put-your-key-here') problems.push('is still the placeholder text');
-    console.log('NTA key loaded: ' + API_KEY.length + ' characters' +
-        (problems.length ? ', but it ' + problems.join(' and ') : ', format looks fine'));
+    // Only fixed wording is logged: nothing taken from the key, not even its length
+    console.log(problems.length
+        ? 'NTA key loaded, but it ' + problems.join(' and ')
+        : 'NTA key loaded, format looks fine');
 })();
 
 const PORT = Number(process.env.PORT) || 3000;
