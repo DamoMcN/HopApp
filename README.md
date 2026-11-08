@@ -85,6 +85,20 @@ Skipping the second one means **Report stolen / Report lost will fail**.
 
 ---
 
+## Bus Map and Live Buses
+The map (`frontend/map/`) shows Irish bus routes, a Buy a ticket tab, and live bus positions.
+
+**Route data.** The split route files in `frontend/map/data/` (`index.json`, `geo-*.json`) are committed, so the routes work straight after pulling. Only the huge source file (`routes.geojson`) stays out of git. To rebuild the split files, put `routes.geojson` in that folder and run `node build-data.js` from `frontend/map/`.
+
+**Live buses (one-time setup, no Node needed).** Live positions come from `backend/live/vehicles.php`, which runs on WAMP like the rest of the PHP.
+1. Get a free National Transport Authority (NTA) API key and subscribe it to the GTFS-Realtime API.
+2. Copy `backend/live/config.local.php.example` to `backend/live/config.local.php` and put your key in it.
+3. That's it. Pick a single route on the map and the live buses appear (they refresh every 30 seconds).
+
+`config.local.php` is git-ignored: never commit your key or paste it into chat. Without a key the map still works and says live positions aren't available. If live buses fail, the reason is in `backend/live/live-error.log`. The older Node version (`backend/live/server.js`) still works if you set `LIVE_URL` in `map.js` to `http://localhost:3000/api/vehicles`.
+
+---
+
 ## Known Limitations
 - **Forgot your password?** shows a "coming soon" pop-up. Password reset is not built yet.
 - **Replacement cards** are not available in the app. The FAQ directs people to Contact Support.

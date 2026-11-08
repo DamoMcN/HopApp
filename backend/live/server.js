@@ -24,6 +24,17 @@ if (!API_KEY) {
     process.exit(1);
 }
 
+// Safe check of the key's shape (never prints the key itself)
+(function checkKey() {
+    const problems = [];
+    if (API_KEY !== API_KEY.trim()) problems.push('has spaces at the start or end');
+    if (/["'\s]/.test(API_KEY)) problems.push('contains quotes or spaces');
+    if (/[^\x21-\x7e]/.test(API_KEY)) problems.push('contains hidden or non-standard characters');
+    if (API_KEY === 'put-your-key-here') problems.push('is still the placeholder text');
+    console.log('NTA key loaded: ' + API_KEY.length + ' characters' +
+        (problems.length ? ', but it ' + problems.join(' and ') : ', format looks fine'));
+})();
+
 const PORT = Number(process.env.PORT) || 3000;
 const CACHE_MS = 10 * 1000;   // many people refreshing = one request to the NTA, not hundreds
 const NTA_URL = 'https://api.nationaltransport.ie/gtfsr/v2/vehicles';
@@ -42,13 +53,23 @@ let cache = { time: 0, vehicles: [] };
 async function loadVehicles() {
     if (Date.now() - cache.time < CACHE_MS) return cache.vehicles;
 
-    const response = await fetch(NTA_URL, {
+    // The key goes both ways, exactly like the original working test server: as a header and as a
+    // query parameter. It only travels to the NTA over HTTPS and is never logged or sent to the browser.
+    const response = await fetch(NTA_URL + '?subscription-key=' + encodeURIComponent(API_KEY), {
         headers: {
             'Cache-Control': 'no-cache',
-            'Ocp-Apim-Subscription-Key': API_KEY   // same header the original server used
+            'Ocp-Apim-Subscription-Key': API_KEY
         }
     });
-    if (!response.ok) throw new Error('NTA responded with ' + response.status);
+    if (!response.ok) {
+        let hint = '';
+        if (response.status === 401 || response.status === 403) {
+            hint = ' (the NTA rejected the key: check NTA_API_KEY in .env has no quotes or spaces, was not regenerated, and is subscribed to the GTFS-Realtime API)';
+        } else if (response.status === 429) {
+            hint = ' (too many requests: wait a minute)';
+        }
+        throw new Error('NTA responded with ' + response.status + hint);
+    }
 
     const buffer = await response.arrayBuffer();
     const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
@@ -81,6 +102,12 @@ app.get('/api/vehicles', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, (error) => {
+    // Express 5 passes start-up problems (such as the port already being in use) here
+    if (error) {
+        console.error('Could not start on port ' + PORT + ': ' + error.message +
+            '. Is another copy of the server already running? Close it and try again.');
+        process.exit(1);
+    }
     console.log('Hop live bus proxy running at http://localhost:' + PORT + '/api/vehicles');
 });

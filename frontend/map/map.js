@@ -5,14 +5,20 @@
 //  Settings you might want to change
 // =========================================
 
+// If the live bus file is hosted online (for example on Azure), put its address here, such as
+// 'https://hop-live.azurewebsites.net/vehicles.php'. Leave it empty to use the copy on your own WAMP.
+const HOSTED_LIVE_URL = '';
+
 const CONFIG = {
     // Route data made by build-data.js (big, so it is not stored in git). See the README.
     // index.json is small and loads first; each region's route lines load when that region is needed.
     INDEX_URL: 'data/index.json',
     GEO_URL: 'data/geo-',
 
-    // The live bus proxy (backend/live/server.js). The map still works without it.
-    LIVE_URL: 'http://localhost:3000/api/vehicles',
+    // Live buses come from backend/live/vehicles.php, which runs on WAMP with the rest of the PHP.
+    // (The optional Node version, backend/live/server.js, works too: set this to 'http://localhost:3000/api/vehicles'.)
+    // The map still works without live buses.
+    LIVE_URL: HOSTED_LIVE_URL || '../../backend/live/vehicles.php',
     LIVE_REFRESH_MS: 30000,
 
     // Light grey base map. map.css re-colours it purple.
@@ -576,7 +582,8 @@ async function fetchLiveBuses() {
     // Cancel a slow request that is still running
     if (liveController) liveController.abort();
     liveController = new AbortController();
-    const timeout = setTimeout(() => liveController.abort(), 8000);
+    // A hosted free server can take a while to wake up, so wait longer before giving up
+    const timeout = setTimeout(() => liveController.abort(), 25000);
 
     try {
         const response = await fetch(CONFIG.LIVE_URL + '?route_id=' + encodeURIComponent(routeId), {
