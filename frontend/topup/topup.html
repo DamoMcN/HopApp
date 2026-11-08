@@ -60,6 +60,13 @@
         <button id="pay-btn" class="submit-btn" type="button" disabled>Top up</button>
         <button id="wallet-btn" class="secondary-btn" type="button" hidden>Pay with wallet (demo)</button>
 
+        <!-- Recurring top ups live on their own page (frontend/recurring/). The text is filled in by topup.js -->
+        <section class="panel recurring-cta" aria-labelledby="recurring-heading">
+            <h2 id="recurring-heading">Recurring top up</h2>
+            <p id="recurring-status">Top up automatically every week, every 2 weeks or every month.</p>
+            <a id="recurring-link" class="secondary-btn link-btn" href="../recurring/recurring.html">Set up a recurring payment today</a>
+        </section>
+
         <a class="back-link" href="../card/card.html">&larr; Back to my card</a>
     </main>
 

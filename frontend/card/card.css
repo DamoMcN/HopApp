@@ -10,6 +10,36 @@
     perspective: 1000px; /* creates the 3D space */
 }
 
+/* Round "+" on the card's bottom-right corner, goes to Top Up.
+   It's outside .hop-card so pressing it doesn't open the card actions menu. */
+.card-topup-btn {
+    position: absolute;
+    right: -6px;
+    bottom: -22px;
+    z-index: 20;                 /* above the card, below the actions drop-down (30) */
+    width: 58px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: var(--card-ink);
+    color: #ffffff;
+    border: 4px solid var(--background-color);
+    box-shadow: 0 8px 20px rgba(60, 30, 100, 0.35);
+    text-decoration: none;
+    transition: transform 0.1s;
+}
+
+.card-topup-btn:active {
+    transform: scale(0.92);
+}
+
+.card-topup-btn:focus-visible {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 3px;
+}
+
 .hop-card {
     position: relative;
     width: 100%;

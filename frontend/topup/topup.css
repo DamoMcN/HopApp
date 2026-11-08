@@ -185,6 +185,24 @@
     text-decoration: none;
 }
 
+/* ---------- Recurring top up link (page: frontend/recurring/) ---------- */
+
+.recurring-cta {
+    margin-top: 0.5rem;
+}
+
+.recurring-cta p {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+.link-btn {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+}
+
 /* ---------- Message ---------- */
 
 .message {
