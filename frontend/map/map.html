@@ -71,7 +71,24 @@
 
             <div class="sheet-body" id="sheet-body">
                 <div class="sheet-scroll">
+                  <!-- My location: one switch for the whole map. Greyed out when the browser blocks location. -->
+                  <div class="location-row" id="location-row">
+                      <div class="location-text">
+                          <strong id="location-title">My location</strong>
+                          <small id="location-status" role="status" aria-live="polite">Off</small>
+                      </div>
+                      <label class="switch">
+                          <input type="checkbox" id="location-switch" role="switch" aria-labelledby="location-title" aria-describedby="location-status">
+                          <span class="switch-track" aria-hidden="true"></span>
+                      </label>
+                  </div>
+
                   <div id="panel-routes" role="tabpanel" aria-labelledby="tab-routes">
+                    <details class="nearby" id="nearby" hidden>
+                        <summary>Stops near you<span id="nearby-count"></span></summary>
+                        <ul class="nearby-list" id="nearby-list"></ul>
+                    </details>
+
                     <div class="field">
                         <label for="region-select">Region</label>
                         <select id="region-select" disabled>
@@ -120,12 +137,21 @@
                         <li><span class="dot dot-from"></span>From</li>
                         <li><span class="dot dot-to"></span>To</li>
                         <li><span class="dot dot-bus"></span>Live bus</li>
+                        <li><span class="dot dot-you"></span>You</li>
                     </ul>
 
                     <p class="soon-note">Stop times and delays are coming soon.</p>
                   </div>
 
                   <div id="panel-ticket" role="tabpanel" aria-labelledby="tab-ticket" hidden>
+                    <button type="button" id="use-location-btn" class="use-location-btn" hidden>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>
+                        </svg>
+                        Use my nearest stop
+                    </button>
+
                     <div class="stop-pair">
                     <div class="field picker">
                         <label for="from-input">From</label>
@@ -162,6 +188,23 @@
             </div>
         </section>
     </div>
+
+    <!-- Asked once, the first time the map opens. The browser then shows its own permission prompt. -->
+    <dialog class="loc-dialog" id="location-dialog" aria-labelledby="loc-dialog-title" aria-describedby="loc-dialog-text">
+        <div class="loc-dialog-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>
+            </svg>
+        </div>
+        <h2 id="loc-dialog-title">Show your location?</h2>
+        <p id="loc-dialog-text">Hop can show where you are on the map and find bus stops near you. Your location stays on your device and is never sent to us.</p>
+        <p class="loc-dialog-note">You can change this any time with the My location switch.</p>
+        <div class="loc-dialog-actions">
+            <button type="button" id="loc-allow" class="continue-btn">Turn on</button>
+            <button type="button" id="loc-skip" class="loc-skip">Not now</button>
+        </div>
+    </dialog>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>

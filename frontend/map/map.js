@@ -47,7 +47,8 @@ const COLORS = {
     citylink: cssVar('--route-citylink') || '#ffd700',
     from:     cssVar('--stop-from')      || '#176b3a',
     to:       cssVar('--stop-to')        || '#a93226',
-    bus:      cssVar('--bus')            || '#f08a24'
+    bus:      cssVar('--bus')            || '#f08a24',
+    you:      cssVar('--you')            || '#2563eb'
 };
 
 // Builds popup content with textContent, so odd characters in the data can't break the page
@@ -182,6 +183,7 @@ async function loadRoutes() {
 
     fillRegions();
     buildStopIndex();
+    refreshLocationFeatures();
     hideMapMessage();
     startInRequestedMode();
     prefetchRegionLines();
@@ -581,20 +583,21 @@ async function fetchLiveBuses() {
 
     // Cancel a slow request that is still running
     if (liveController) liveController.abort();
-    liveController = new AbortController();
+    const controller = new AbortController();
+    liveController = controller;
     // A hosted free server can take a while to wake up, so wait longer before giving up
-    const timeout = setTimeout(() => liveController.abort(), 25000);
+    const timeout = setTimeout(() => controller.abort(), 25000);
 
     try {
         const response = await fetch(CONFIG.LIVE_URL + '?route_id=' + encodeURIComponent(routeId), {
-            signal: liveController.signal
+            signal: controller.signal
         });
         if (!response.ok) throw new Error('HTTP ' + response.status);
         const buses = await response.json();
         if (!Array.isArray(buses)) throw new Error('Unexpected reply');
 
-        // The person may have picked a different route while we waited
-        if (!activeRoute || activeRoute.properties.route_id !== routeId) return;
+        // The person may have picked a different route (or a newer request started) while we waited
+        if (liveController !== controller || !activeRoute || activeRoute.properties.route_id !== routeId) return;
 
         busesLayer.clearLayers();
         buses.forEach((bus) => {
@@ -607,7 +610,8 @@ async function fetchLiveBuses() {
             ? 'No live buses on this route right now.'
             : buses.length + (buses.length === 1 ? ' live bus' : ' live buses') + ' on this route.');
     } catch (error) {
-        if (error.name === 'AbortError' && activeRoute && activeRoute.properties.route_id !== routeId) return;
+        // A newer request replaced this one, or the route changed: say nothing
+        if (liveController !== controller || !activeRoute || activeRoute.properties.route_id !== routeId) return;
         console.warn('Live buses unavailable:', error);
         busesLayer.clearLayers();
         setLiveStatus('Live bus positions are not available right now.');
@@ -651,11 +655,12 @@ function setMode(next, options) {
 
     // Each mode keeps its own layers; only the active mode's are on the map
     if (mode === 'tickets') {
-        [linesLayer, stopsLayer, busesLayer].forEach((l) => map.removeLayer(l));
+        [linesLayer, stopsLayer, busesLayer, nearbyLayer].forEach((l) => map.removeLayer(l));
         ticketLayer.addTo(map);
     } else {
         map.removeLayer(ticketLayer);
         [linesLayer, stopsLayer, busesLayer].forEach((l) => l.addTo(map));
+        if (nearbyLayer.getLayers().length) nearbyLayer.addTo(map);
         if (activeRoute) fetchLiveBuses();
     }
 
@@ -1089,7 +1094,365 @@ function startInRequestedMode() {
 $('ticket-hint').textContent = 'Search for where you are starting and where you are going.';
 
 // =========================================
+//  My location
+//  Off until the person says yes. If the browser blocks it, everything that
+//  needs it hides or greys out. The position never leaves the device.
+// =========================================
+
+const LOC_KEY = 'hop.location';
+const NEARBY_MAX_M = 3000;
+const NEARBY_COUNT = 5;
+
+const loc = {
+    supported: window.isSecureContext && 'geolocation' in navigator,
+    perm: 'unknown',     // 'granted' | 'denied' | 'prompt' | 'unknown' (from the browser)
+    on: false,           // the person's own switch
+    asked: false,        // has the first-time question been answered?
+    fix: null,           // { lat, lon, acc }
+    watchId: null,
+    centerNext: false,
+    error: ''
+};
+
+const youLayer = L.layerGroup().addTo(map);
+let nearbyBuiltAt = null;
+
+function readLocPrefs() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(LOC_KEY) || '{}');
+        loc.on = saved.on === true;
+        loc.asked = saved.asked === true;
+    } catch (e) { /* storage blocked: start with defaults */ }
+}
+
+function saveLocPrefs() {
+    try { localStorage.setItem(LOC_KEY, JSON.stringify({ on: loc.on, asked: loc.asked })); } catch (e) { /* ignore */ }
+}
+
+const locUsable = () => loc.supported && loc.perm !== 'denied';
+const locActive = () => locUsable() && loc.on;
+
+function locDisabledReason() {
+    if (!window.isSecureContext) return 'Needs a secure (https) connection';
+    if (!('geolocation' in navigator)) return 'Not available on this device';
+    if (loc.perm === 'denied') return 'Blocked in your browser settings. Allow location for this site to use it.';
+    return '';
+}
+
+function locStatusText() {
+    if (!locUsable()) return locDisabledReason();
+    if (!loc.on) return 'Off';
+    if (loc.fix) return 'On · accurate to about ' + formatDistance(Math.max(loc.fix.acc || 0, 10));
+    if (loc.error === 'unavailable') return "Can't find your position right now";
+    if (loc.error === 'timeout') return 'Taking a while to find you…';
+    return 'Finding you…';
+}
+
+function updateLocationUI() {
+    const usable = locUsable();
+    const sw = $('location-switch');
+    sw.checked = locActive();
+    sw.disabled = !usable;
+    $('location-row').classList.toggle('is-disabled', !usable);
+    $('location-status').textContent = locStatusText();
+
+    const btn = locateButton;
+    if (btn) {
+        btn.setAttribute('aria-disabled', String(!usable));
+        btn.classList.toggle('is-on', locActive());
+        btn.title = !usable ? locDisabledReason() : (locActive() ? 'Go to my location' : 'Turn on my location');
+        btn.setAttribute('aria-label', btn.title);
+    }
+
+    if (locActive()) startWatch(); else stopWatch();
+    refreshLocationFeatures();
+}
+
+function refreshLocationFeatures() {
+    const showing = locActive() && loc.fix;
+    drawYou();
+    updateNearby();
+    $('use-location-btn').hidden = !(showing && stopList.length);
+}
+
+function startWatch() {
+    if (loc.watchId !== null || !loc.supported || document.hidden) return;
+    loc.watchId = navigator.geolocation.watchPosition(onFix, onLocError, {
+        enableHighAccuracy: true, maximumAge: 10000, timeout: 20000
+    });
+}
+
+function stopWatch() {
+    if (loc.watchId === null) return;
+    navigator.geolocation.clearWatch(loc.watchId);
+    loc.watchId = null;
+}
+
+function onFix(position) {
+    const c = position.coords;
+    loc.fix = { lat: c.latitude, lon: c.longitude, acc: c.accuracy };
+    loc.error = '';
+    if (loc.perm !== 'granted') loc.perm = 'granted';
+    $('location-status').textContent = locStatusText();
+    if (loc.centerNext) {
+        loc.centerNext = false;
+        const ll = L.latLng(c.latitude, c.longitude);
+        fitTo(L.latLngBounds([ll, ll]), { maxZoom: 15 });
+    }
+    refreshLocationFeatures();
+    updateLocateButtonState();
+}
+
+function onLocError(error) {
+    if (error && error.code === 1) {            // permission denied
+        loc.perm = 'denied';
+        loc.fix = null;
+        stopWatch();
+        updateLocationUI();
+        return;
+    }
+    loc.error = error && error.code === 3 ? 'timeout' : 'unavailable';
+    $('location-status').textContent = locStatusText();
+}
+
+function updateLocateButtonState() {
+    if (locateButton) locateButton.classList.toggle('is-on', locActive());
+}
+
+// ----- The blue dot -----
+
+function drawYou() {
+    youLayer.clearLayers();
+    if (!(locActive() && loc.fix)) return;
+    const ll = [loc.fix.lat, loc.fix.lon];
+    if (loc.fix.acc && loc.fix.acc <= 2000) {
+        L.circle(ll, {
+            radius: loc.fix.acc, color: COLORS.you, weight: 1, opacity: 0.4,
+            fillColor: COLORS.you, fillOpacity: 0.1, interactive: false
+        }).addTo(youLayer);
+    }
+    const icon = L.divIcon({
+        className: 'you-marker',
+        html: '<span class="you-pulse"></span><span class="you-dot"></span>',
+        iconSize: [26, 26], iconAnchor: [13, 13]
+    });
+    L.marker(ll, { icon: icon, keyboard: false, zIndexOffset: 1000, interactive: false }).addTo(youLayer);
+}
+
+// ----- Nearest stops -----
+
+function distanceM(lat1, lon1, lat2, lon2) {
+    const rad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * rad;
+    const dLon = (lon2 - lon1) * rad;
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+    return 6371000 * 2 * Math.asin(Math.sqrt(a));
+}
+
+function formatDistance(m) {
+    if (m < 1000) return Math.round(m / 10) * 10 + ' m';
+    return (m / 1000).toFixed(1) + ' km';
+}
+
+function nearestStops(lat, lon, count, maxM) {
+    const found = [];
+    for (let i = 0; i < stopList.length; i++) {
+        const s = stopList[i];
+        // cheap box test first so thousands of stops stay fast
+        if (Math.abs(s.lat - lat) > 0.1 || Math.abs(s.lon - lon) > 0.15) continue;
+        const d = distanceM(lat, lon, s.lat, s.lon);
+        if (d <= maxM) found.push({ stop: s, d: d });
+    }
+    found.sort((a, b) => a.d - b.d);
+    return found.slice(0, count);
+}
+
+const nearbyLayer = L.layerGroup();
+
+function updateNearby() {
+    const box = $('nearby');
+    const list = $('nearby-list');
+    const active = locActive() && loc.fix && stopList.length;
+
+    if (!active) {
+        box.hidden = true;
+        nearbyLayer.clearLayers();
+        map.removeLayer(nearbyLayer);
+        nearbyBuiltAt = null;
+        return;
+    }
+
+    // Don't rebuild for tiny GPS jitter
+    if (nearbyBuiltAt && distanceM(nearbyBuiltAt.lat, nearbyBuiltAt.lon, loc.fix.lat, loc.fix.lon) < 25 && !box.hidden) return;
+    nearbyBuiltAt = { lat: loc.fix.lat, lon: loc.fix.lon };
+
+    const near = nearestStops(loc.fix.lat, loc.fix.lon, NEARBY_COUNT, NEARBY_MAX_M);
+    list.innerHTML = '';
+    nearbyLayer.clearLayers();
+    box.hidden = false;
+    $('nearby-count').textContent = near.length ? ' (' + near.length + ')' : '';
+
+    if (!near.length) {
+        const li = document.createElement('li');
+        li.className = 'nearby-empty';
+        li.textContent = 'No bus stops within 3 km of you.';
+        list.appendChild(li);
+    }
+
+    near.forEach((item) => {
+        const marker = L.circleMarker([item.stop.lat, item.stop.lon], {
+            radius: 7, color: '#ffffff', weight: 2, fillColor: COLORS.route, fillOpacity: 1
+        }).bindPopup(popupContent(item.stop.name, [formatDistance(item.d) + ' away']));
+        nearbyLayer.addLayer(marker);
+
+        const li = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'nearby-item';
+        const name = document.createElement('strong');
+        name.textContent = item.stop.name;
+        const dist = document.createElement('small');
+        dist.textContent = formatDistance(item.d) + ' away';
+        button.appendChild(name);
+        button.appendChild(dist);
+        button.addEventListener('click', () => {
+            map.setView([item.stop.lat, item.stop.lon], Math.max(map.getZoom(), 16));
+            marker.openPopup();
+        });
+        li.appendChild(button);
+        list.appendChild(li);
+    });
+
+    if (mode === 'routes') nearbyLayer.addTo(map);
+}
+
+// "Use my nearest stop" in Buy a ticket
+$('use-location-btn').addEventListener('click', () => {
+    if (!(locActive() && loc.fix)) return;
+    const nearest = nearestStops(loc.fix.lat, loc.fix.lon, 1, 50000)[0];
+    if (!nearest) {
+        $('ticket-hint').textContent = 'No bus stops found near you.';
+        return;
+    }
+    fromPicker.set(nearest.stop);
+    if (!toPicker.get()) {
+        $('ticket-hint').textContent = 'Starting from ' + nearest.stop.name + ', about ' +
+            formatDistance(nearest.d) + ' from you. Now choose where you are going.';
+    }
+});
+
+// ----- Round button under the zoom buttons -----
+
+let locateButton = null;
+const LocateControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function () {
+        const bar = L.DomUtil.create('div', 'leaflet-bar locate-ctl');
+        const a = L.DomUtil.create('a', 'locate-btn', bar);
+        a.href = '#';
+        a.setAttribute('role', 'button');
+        a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+            'stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/>' +
+            '<path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
+        locateButton = a;
+        L.DomEvent.disableClickPropagation(bar);
+        L.DomEvent.on(a, 'click', (e) => {
+            L.DomEvent.preventDefault(e);
+            if (!locUsable()) { showToast(locDisabledReason()); return; }
+            if (!loc.on) { turnOn(); return; }
+            if (loc.fix) {
+                const ll = L.latLng(loc.fix.lat, loc.fix.lon);
+                fitTo(L.latLngBounds([ll, ll]), { maxZoom: 15 });
+            } else {
+                showToast(locStatusText());
+            }
+        });
+        return bar;
+    }
+});
+map.addControl(new LocateControl());
+
+function turnOn() {
+    if (!locUsable()) return;
+    loc.on = true;
+    loc.asked = true;
+    loc.centerNext = true;
+    loc.error = '';
+    saveLocPrefs();
+    updateLocationUI();
+}
+
+function turnOff() {
+    loc.on = false;
+    loc.asked = true;
+    loc.fix = null;
+    loc.centerNext = false;
+    saveLocPrefs();
+    updateLocationUI();
+}
+
+$('location-switch').addEventListener('change', (event) => {
+    if (event.target.checked) turnOn(); else turnOff();
+});
+
+// Stop using the GPS while the tab is hidden
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopWatch(); else if (locActive()) startWatch();
+});
+
+// ----- First visit question -----
+
+function showLocationDialog() {
+    const dialog = $('location-dialog');
+    if (typeof dialog.showModal !== 'function') return;
+    let decided = false;
+    const finish = (yes) => {
+        if (decided) return;
+        decided = true;
+        if (dialog.open) dialog.close();
+        if (yes) {
+            turnOn();
+        } else {
+            loc.asked = true;
+            saveLocPrefs();
+        }
+    };
+    $('loc-allow').addEventListener('click', () => finish(true), { once: true });
+    $('loc-skip').addEventListener('click', () => finish(false), { once: true });
+    dialog.addEventListener('cancel', () => finish(false), { once: true });
+    dialog.showModal();
+}
+
+function initLocation() {
+    readLocPrefs();
+
+    const start = () => {
+        // Switch was on last time but the browser now asks again: stay off until they choose
+        if (loc.on && loc.perm === 'prompt') { loc.on = false; saveLocPrefs(); }
+        updateLocationUI();
+        if (!loc.asked && loc.supported && loc.perm !== 'denied') showLocationDialog();
+    };
+
+    if (loc.supported && navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' }).then((status) => {
+            loc.perm = status.state;
+            // They can change this in the browser's site settings at any time
+            status.addEventListener('change', () => {
+                loc.perm = status.state;
+                if (loc.perm === 'denied') loc.fix = null;
+                updateLocationUI();
+            });
+            start();
+        }).catch(start);
+    } else {
+        start();
+    }
+}
+
+// =========================================
 //  Go
 // =========================================
 
 loadRoutes();
+initLocation();
