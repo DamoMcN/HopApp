@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hop App - Settings</title>
     <link rel="stylesheet" href="../shared/css/main.css">
-    <link rel="stylesheet" href="setting.css?v=20261105-account-settings">
+    <link rel="stylesheet" href="setting.css?v=20261112-profile-links">
 </head>
 <body class="app-page">
     <header class="app-header">
@@ -28,8 +28,8 @@
             <p class="settings-intro">Your account details.</p>
             <dl class="profile-details">
                 <div><dt>Name</dt><dd id="profile-name">Loading…</dd></div>
-                <div><dt>Email</dt><dd id="profile-email">Loading…</dd></div>
-                <div><dt>Card type</dt><dd id="profile-card-type">Loading…</dd></div>
+                <div><dt>Email</dt><dd><a id="profile-email" href="#">Loading…</a></dd></div>
+                <div><dt>Card type</dt><dd><a id="profile-card-type" href="../card/card.html">Loading…</a></dd></div>
             </dl>
             <p class="settings-help">To change your name or email, contact Help &amp; Support.</p>
         </section>
@@ -62,6 +62,6 @@
     </main>
 
     <script src="../shared/js/menu.js?v=20261111-settings-nav"></script>
-    <script src="setting.js?v=20261105-account-settings"></script>
+    <script src="setting.js?v=20261112-profile-links"></script>
 </body>
 </html>

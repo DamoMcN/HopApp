@@ -164,6 +164,20 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- --------------------------------------------------------
+--
+-- Table structure for table `user_preferences`
+--
+
+CREATE TABLE IF NOT EXISTS `user_preferences` (
+  `user_id` int NOT NULL,
+  `auto_top_up_enabled` tinyint(1) NOT NULL DEFAULT 0,
+  `auto_top_up_amount_eur` int NOT NULL DEFAULT 10,
+  `auto_top_up_card_id` int DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`),
+  KEY `auto_top_up_card_id` (`auto_top_up_card_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 --
 -- Constraints for dumped tables
 --
@@ -193,6 +207,12 @@ ALTER TABLE `saved_cards`
 ALTER TABLE `settings`
   ADD CONSTRAINT `settings_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
 
+--
+-- Constraints for table `user_preferences`
+--
+ALTER TABLE `user_preferences`
+  ADD CONSTRAINT `user_preferences_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `user_preferences_card_fk` FOREIGN KEY (`auto_top_up_card_id`) REFERENCES `saved_cards` (`card_id`) ON DELETE SET NULL;
 --
 -- Constraints for table `tickets`
 --

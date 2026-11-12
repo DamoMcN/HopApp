@@ -176,7 +176,10 @@ async function loadSettings() {
 
         settingsUserId = Number(data.user_id);
         settingEl('profile-name').textContent = [data.f_name, data.l_name].filter(Boolean).join(' ');
-        settingEl('profile-email').textContent = data.email || 'Not available';
+        const emailLink = settingEl('profile-email');
+        emailLink.textContent = data.email || 'Not available';
+        if (data.email) emailLink.href = 'mailto:' + data.email;
+        else emailLink.removeAttribute('href');
         settingEl('profile-card-type').textContent = data.card_type || 'Not available';
         renderCardStatus(data.card_status);
         await loadTopUpSettings();

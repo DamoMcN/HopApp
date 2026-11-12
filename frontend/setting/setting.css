@@ -135,3 +135,6 @@
     color: var(--positive);
     font-weight: 600;
 }
+
+.profile-details a { color: inherit; text-decoration: underline; text-decoration-color: var(--text-muted); text-underline-offset: 0.15em; }
+.profile-details a:hover { color: var(--primary-color, #6b3fa0); }
