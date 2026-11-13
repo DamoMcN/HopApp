@@ -30,7 +30,7 @@ test('Card shows the expiry date, clearly labelled', async ({ page }) => {
   await openCard(page, '2031-11-30');
   await expect(page.locator('.card-expiry-label')).toHaveText('Valid until');
   await expect(page.locator('#card-expiry-display')).toHaveText('11/31');
-  await expect(page.locator('#card-expiry-note')).toHaveText('Card valid until 30 November 2031.');
+  await expect(page.locator('#card-expiry-note')).toBeEmpty();   // no extra line under the card
 });
 
 test('Message is shown when the expiry date is unavailable', async ({ page }) => {
