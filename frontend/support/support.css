@@ -279,3 +279,41 @@ h2 {
 #answerPage {
   display: block;
 }
+
+/* ---------- Contact Support ---------- */
+
+.contact-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.contact-options[hidden] { display: none; }
+
+.contact-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  background-color: #ffffff;
+  border: 2px solid var(--card-ink);
+  color: var(--card-ink);
+  text-decoration: none;
+}
+
+.contact-link:active { transform: scale(0.98); }
+
+.contact-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.contact-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+}

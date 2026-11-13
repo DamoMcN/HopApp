@@ -247,9 +247,16 @@ function filterQuestions() {
 
 // ---------- Contact Support (flips to its own page) ----------
 
+// Support contact details. Leave a value empty ("") if it isn't available.
+const SUPPORT_CONTACT = {
+  phone: "+353 1 234 5678",
+  email: "support@hopapp.ie"
+};
+
 function showAnswer(item) {
   document.getElementById("answerTitle").textContent = item.question;
   document.getElementById("answerText").textContent = item.answer;
+  document.getElementById("contactOptions").hidden = true;
   document.getElementById("flipInner").classList.add("flipped");
   window.scrollTo(0, 0);
 }
@@ -259,11 +266,41 @@ function showFAQ() {
   window.scrollTo(0, 0);
 }
 
+// One tappable row: "tel:" opens the phone dialler, "mailto:" opens the email app
+function contactLink(href, label, value) {
+  const link = document.createElement("a");
+  link.className = "contact-link";
+  link.href = href;
+
+  const small = document.createElement("span");
+  small.className = "contact-label";
+  small.textContent = label;
+
+  const big = document.createElement("span");
+  big.className = "contact-value";
+  big.textContent = value;
+
+  link.append(small, big);
+  return link;
+}
+
 function showContact() {
+  const phone = (SUPPORT_CONTACT.phone || "").trim();
+  const email = (SUPPORT_CONTACT.email || "").trim();
+  const any = phone || email;
+
   showAnswer({
     question: "Contact Support",
-    answer: "Need more help? Please contact our support team. This feature is a demonstration in the Hop App prototype."
+    answer: any
+      ? "Need more help? Call or email our support team."
+      : "Support contact details aren't available right now. Please try again later."
   });
+
+  const options = document.getElementById("contactOptions");
+  options.innerHTML = "";
+  if (phone) options.appendChild(contactLink("tel:" + phone.replace(/[^+\d]/g, ""), "Call us", phone));
+  if (email) options.appendChild(contactLink("mailto:" + email, "Email us", email));
+  options.hidden = !any;
 }
 
 function goBack() {
