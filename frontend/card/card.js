@@ -97,7 +97,8 @@ function renderCardExpiry(value) {
             '. Renew it soon.';
         note.classList.add('soon');
     } else {
-        note.textContent = 'Card valid until ' + longDate + '.';
+        // Valid for more than a month: the date on the card face is enough
+        note.textContent = '';
     }
 }
 
