@@ -24,7 +24,7 @@ const faqSections = [
       },
       {
         question: "How do I reset my password?",
-        answer: "Select Forgot your password? on the login page and follow the instructions to reset your password."
+        answer: "Password reset isn't available in the app yet. If you can't log in, press Contact Support at the bottom of this page."
       },
       {
         question: "How do I log out?",
@@ -89,6 +89,10 @@ const faqSections = [
       {
         question: "How do I freeze my card?",
         answer: "Press your card on the home page and choose Freeze card. To use it again, press the card and choose Unfreeze card."
+      },
+      {
+        question: "When does my card expire?",
+        answer: "A Hop Card is valid for one year from the day it was created. The expiry date is shown as VALID UNTIL on the front of your card, and you'll see a reminder under the card in the last 30 days."
       }
     ]
   },
@@ -156,6 +160,7 @@ function makeToggle(button, panel, startOpen) {
 
 // openAll is used while searching, so the matches are visible straight away
 function renderQuestions(sections, openAll) {
+  sections = sections.filter(section => section.items.length > 0);   // skip empty sections
   const container = document.getElementById("questions");
   container.innerHTML = "";
 
@@ -215,8 +220,13 @@ function renderQuestions(sections, openAll) {
     container.appendChild(sectionEl);
   });
 
-  // Only show "No matching questions" when there really is nothing to show
-  document.getElementById("empty").classList.toggle("hidden", sections.length > 0);
+  // Nothing to show: say why. No FAQs at all is different from a search with no matches.
+  const empty = document.getElementById("empty");
+  const hasFaqs = faqSections.some(section => section.items.length > 0);
+  empty.textContent = hasFaqs
+    ? "No matching questions found."
+    : "There are no FAQs available right now. Press Contact Support below if you need help.";
+  empty.classList.toggle("hidden", sections.length > 0);
 }
 
 function filterQuestions() {
