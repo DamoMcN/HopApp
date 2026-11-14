@@ -98,6 +98,8 @@ http://localhost/HopApp/frontend/auth/index.html
 | 1 | `database/topup_migration.sql` | Top up and saved cards fail |
 | 2 | `database/card_reports_migration.sql` | **Report lost / stolen** fails |
 | 3 | `database/card_expiry_migration.sql` | **Logging in bounces you straight back to the login page** |
+| 4 | `database/saved_cards_migration.sql` | Saving your own card fails |
+| 5 | `database/recurring_topups_migration.sql` | Recurring top ups fail |
 
 </details>
 
@@ -285,7 +287,8 @@ flowchart LR
 | ✅ | Buy a ticket journey planner (From, To, choose a bus) | `frontend/map/`, `frontend/tickets/` |
 | ✅ | Live bus positions | `backend/live/` |
 | ✅ | Optional My location with nearby stops | `frontend/map/` |
-| 🚧 | Stop times and delays | Coming soon |
+| ✅ | Tap a stop: buses that stop there, next arrivals and delays (needs the hosted live server) | `frontend/map/`, `backend/live/` |
+| ✅ | Search routes by number or name, including city buses (Galway 401 to 412, Cork, Limerick, Waterford) | `frontend/map/` |
 | 🚧 | Actually buying a ticket | Coming soon |
 | 🚧 | Password reset | "Coming soon" pop-up for now |
 
@@ -311,7 +314,7 @@ Only the huge source file `routes.geojson` stays out of git. To rebuild the spli
 
 <br>
 
-Live positions come from a small Node server hosted free on Render at `https://hopapp.onrender.com/api/vehicles`. It holds the transport API key so nobody else needs one. `map.js` points at it through `HOSTED_LIVE_URL`. Pick one route and buses appear, refreshing every 30 seconds.
+Live positions come from a small Node server hosted free on Render at `https://hopapp.onrender.com/api/vehicles`. The same server answers `/api/stop-times?stop_id=…` with the next buses and delays at one stop, read from the transport API's trip-updates feed. The PHP copy on WAMP does not have stop times. It holds the transport API key so nobody else needs one. `map.js` points at it through `HOSTED_LIVE_URL`. Pick one route and buses appear, refreshing every 30 seconds.
 
 - **It sleeps.** Render's free tier sleeps after about 15 minutes idle. The first request afterwards can take around a minute, so the map may say "Live bus positions are not available right now". Wait a minute and pick the route again.
 - **Render settings.** Root directory `backend/live`, build command `npm install`, start command `node server.js`, Free plan. Environment variables: `NTA_API_KEY` (your National Transport Authority key) and `ALLOWED_ORIGINS` (sites allowed to call it, for example `http://localhost`).
@@ -401,7 +404,7 @@ HopApp/
 - **`frontend/card/`**: card face, balance, transactions, status veil and the actions drop-down. Refreshes the balance whenever the page is shown.
 - **`frontend/topup/`**: circular dial (drag, tap or arrow keys), saved cards, "Add demo card", demo wallet sheet.
 - **`frontend/support/`**: accordion FAQ with search. To add questions edit the `faqSections` list at the top of `support.js`.
-- **`frontend/map/`**: `map.js` (Leaflet map, stop search, bus finder, live buses, location), `build-data.js` (builds the per-region data files).
+- **`frontend/map/`**: `map.js` (Leaflet map, route and stop search, bus finder, stop card, live buses, location), `build-data.js` (builds the per-region data files and files city buses under their city).
 - **`frontend/tickets/`**: shows the validated journey with Change journey and Clear.
 
 </details>
@@ -415,7 +418,7 @@ HopApp/
 - [x] Bus map with route data for all of Ireland
 - [x] Journey planner and Tickets hand-off
 - [x] Live buses and optional My location
-- [ ] Stop times and delays on the map
+- [x] Stop card with next buses and delays
 - [ ] Buy the ticket you planned (server must check `card_status = 'active'`)
 - [ ] Password reset
 - [ ] Replacement cards in the app (the FAQ points to Contact Support for now)

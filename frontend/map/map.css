@@ -547,6 +547,36 @@ body.map-page {
     color: var(--text-muted);
 }
 
+/* While the route search is open the sheet grows so the list is visible */
+.plan-sheet.is-searching .sheet-scroll {
+    max-height: min(52vh, 440px);
+}
+
+/* Route search: a longer list, so it scrolls */
+.route-results {
+    max-height: 240px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.route-results li.route-option {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.route-option .bus-badge {
+    flex: none;
+}
+
+.route-option-text {
+    min-width: 0;
+}
+
+.route-option-text span {
+    display: block;
+}
+
 .stop-pair {
     position: relative;
 }
@@ -983,6 +1013,86 @@ dialog.loc-dialog::backdrop {
 .loc-skip:focus-visible {
     outline: 3px solid var(--card-ink);
     outline-offset: 2px;
+}
+
+/* ---------- Stop card (tap a stop) ---------- */
+.stop-card-title {
+    margin: 0.75rem 0 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.stop-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.stop-chips .bus-badge {
+    min-width: 0;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.8rem;
+    border-radius: 8px;
+}
+
+.stop-chips-more {
+    align-self: center;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.stop-times {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.stop-times-note {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.stop-time-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stop-time-row .bus-badge {
+    min-width: 2.6rem;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.8rem;
+    border-radius: 8px;
+}
+
+.stop-time-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.82rem;
+    line-height: 1.25;
+}
+
+.stop-time-text span {
+    display: block;
+}
+
+.stop-time-text small {
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.stop-time-text small.is-ontime { color: #1e7a45; }
+.stop-time-text small.is-late   { color: #b3382c; }
+.stop-time-text small.is-early  { color: #8a5a00; }
+
+.stop-time-when {
+    flex: none;
+    font-size: 0.95rem;
+    color: var(--card-ink);
 }
 
 /* ---------- Helpers ---------- */

@@ -107,11 +107,12 @@
                         </label>
                     </div>
 
-                    <div id="route-container" class="field" hidden>
-                        <label for="route-select">Route</label>
-                        <select id="route-select">
-                            <option value="all">Show all in region</option>
-                        </select>
+                    <div id="route-container" class="field picker" hidden>
+                        <label for="route-input">Route</label>
+                        <input type="text" id="route-input" role="combobox" aria-expanded="false"
+                               aria-controls="route-results" aria-autocomplete="list"
+                               placeholder="Search by number or name, e.g. 404" autocomplete="off">
+                        <ul id="route-results" class="picker-results route-results" role="listbox" aria-label="Routes" hidden></ul>
                     </div>
 
                     <div id="stop-selectors" hidden>
@@ -140,7 +141,6 @@
                         <li><span class="dot dot-you"></span>You</li>
                     </ul>
 
-                    <p class="soon-note">Stop times and delays are coming soon.</p>
                   </div>
 
                   <div id="panel-ticket" role="tabpanel" aria-labelledby="tab-ticket" hidden>
