@@ -23,6 +23,29 @@ if (!fs.existsSync(SOURCE)) {
 
 const round = (n) => Number(n.toFixed(DECIMALS));
 
+// The source data files city buses (Galway 401 to 412, Cork 2xx, Limerick 3xx, Waterford W1 to W5)
+// under "Other / National". A route with nearly all of its stops inside one city belongs to that
+// city, so the region picker finds it. Boxes are [south, north, west, east].
+const CITY_BOXES = {
+    'Galway':    [53.20, 53.36, -9.20, -8.90],
+    'Cork':      [51.82, 51.98, -8.60, -8.35],
+    'Limerick':  [52.60, 52.72, -8.75, -8.50],
+    'Waterford': [52.22, 52.30, -7.20, -7.05]
+};
+const CITY_SHARE = 0.8;      // this share of a route's stops must be inside the city
+
+function cityFor(stopRefs, table) {
+    if (!stopRefs.length) return null;
+    return Object.keys(CITY_BOXES).find((city) => {
+        const box = CITY_BOXES[city];
+        const inside = stopRefs.filter((i) => {
+            const s = table[i];
+            return s[2] >= box[0] && s[2] <= box[1] && s[3] >= box[2] && s[3] <= box[3];
+        }).length;
+        return inside / stopRefs.length >= CITY_SHARE;
+    }) || null;
+}
+
 // Douglas-Peucker line simplification (iterative so long lines can't overflow the stack)
 function simplify(points, tolerance) {
     if (points.length < 3) return points;
@@ -72,7 +95,7 @@ let nextKey = 0;
 
 features.forEach((f) => {
     const p = f.properties;
-    const region = p.region || 'Other / National';
+    let region = p.region || 'Other / National';
 
     const stopRefs = (p.stops || []).map((s) => {
         const id = String(s.id);
@@ -82,6 +105,8 @@ features.forEach((f) => {
         }
         return stopPosition.get(id);
     });
+
+    if (region === 'Other / National') region = cityFor(stopRefs, stopTable) || region;
 
     let key = null;
     if (f.geometry && f.geometry.type === 'LineString') {

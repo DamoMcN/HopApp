@@ -21,6 +21,10 @@ const CONFIG = {
     LIVE_URL: HOSTED_LIVE_URL || '../../backend/live/vehicles.php',
     LIVE_REFRESH_MS: 30000,
 
+    // Next arrivals at a stop. Only the hosted Node server has this (the PHP copy does not),
+    // so without it the stop card just leaves the "Next buses" part out.
+    STOP_TIMES_URL: HOSTED_LIVE_URL ? HOSTED_LIVE_URL.replace(/vehicles$/, 'stop-times') : '',
+
     // Light grey base map. map.css re-colours it purple.
     TILE_URL: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
     TILE_ATTRIBUTION: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
@@ -365,27 +369,190 @@ async function updateRegionView() {
     drawLines(routes);
 }
 
+// ----- Route search (Route view) -----
+// One entry per route name, sorted by number. The text box searches number, name and operator.
+let routeOptions = [];
+const routeSearchText = new Map();   // route -> normalised text to search
+
 function fillRouteDropdown(routes) {
-    const select = $('route-select');
-    select.innerHTML = '';
-
-    const all = document.createElement('option');
-    all.value = 'all';
-    all.textContent = 'Show all in region';
-    select.appendChild(all);
-
-    // One entry per route name
     const unique = [...new Map(routes.map((f) => [f.properties.display_name, f])).values()];
-
-    unique
-        .sort((a, b) => String(a.properties.short_name).localeCompare(String(b.properties.short_name), undefined, { numeric: true }))
-        .forEach((feature) => {
-            const option = document.createElement('option');
-            option.value = feature.properties.route_id;
-            option.textContent = feature.properties.display_name;
-            select.appendChild(option);
-        });
+    routeOptions = unique.sort((a, b) =>
+        String(a.properties.short_name).localeCompare(String(b.properties.short_name), undefined, { numeric: true }));
+    routeOptions.forEach((f) => {
+        const p = f.properties;
+        routeSearchText.set(f, normalise(p.short_name + ' ' + p.long_name + ' ' + p.agency_name));
+    });
+    routePicker.reset();
 }
+
+function searchRoutes(query) {
+    const text = normalise(query).trim();
+    if (!text) return routeOptions.slice();
+    const tokens = text.split(/\s+/);
+    const scored = [];
+
+    routeOptions.forEach((feature) => {
+        const hay = routeSearchText.get(feature) || '';
+        if (!tokens.every((t) => hay.includes(t))) return;
+        const short = normalise(feature.properties.short_name);
+        let rank = 3;
+        if (short === text) rank = 0;
+        else if (short.startsWith(text)) rank = 1;
+        else if (hay.includes(' ' + tokens[0])) rank = 2;
+        scored.push({ feature: feature, rank: rank });
+    });
+
+    // Already in number order, so a stable sort by rank keeps ties tidy
+    scored.sort((a, b) => a.rank - b.rank);
+    return scored.map((x) => x.feature);
+}
+
+function createRoutePicker() {
+    const input = $('route-input');
+    const list = $('route-results');
+    let items = [];       // 'all' or a route
+    let active = -1;
+    let hasRoute = false; // is one route picked right now?
+
+    const sheetEl = $('plan-sheet');
+
+    function close() {
+        list.hidden = true;
+        sheetEl.classList.remove('is-searching');
+        input.setAttribute('aria-expanded', 'false');
+        input.removeAttribute('aria-activedescendant');
+        active = -1;
+    }
+
+    function highlight(index) {
+        active = index;
+        Array.from(list.children).forEach((li, i) => li.setAttribute('aria-selected', String(i === active)));
+        if (active >= 0) {
+            input.setAttribute('aria-activedescendant', list.children[active].id);
+            list.children[active].scrollIntoView({ block: 'nearest' });
+        } else {
+            input.removeAttribute('aria-activedescendant');
+        }
+    }
+
+    function open() {
+        if (routeOptions.length === 0) { close(); return; }
+        const query = input.value;
+        const matches = searchRoutes(query);
+        items = query.trim() ? matches : ['all'].concat(matches);
+        list.innerHTML = '';
+
+        if (items.length === 0) {
+            const li = document.createElement('li');
+            li.className = 'picker-empty';
+            li.textContent = 'No routes found';
+            list.appendChild(li);
+        }
+
+        items.forEach((item, i) => {
+            const li = document.createElement('li');
+            li.id = 'route-results-' + i;
+            li.className = 'route-option';
+            li.setAttribute('role', 'option');
+            li.setAttribute('aria-selected', 'false');
+
+            if (item === 'all') {
+                const text = document.createElement('div');
+                text.className = 'route-option-text';
+                const name = document.createElement('span');
+                name.textContent = 'Show all routes in this region';
+                const small = document.createElement('small');
+                small.textContent = routeOptions.length + ' routes';
+                text.appendChild(name);
+                text.appendChild(small);
+                li.appendChild(text);
+            } else {
+                const p = item.properties;
+                const badge = document.createElement('span');
+                badge.className = 'bus-badge' + (isCitylink(item) ? ' is-citylink' : '');
+                badge.textContent = p.short_name || '?';
+                const text = document.createElement('div');
+                text.className = 'route-option-text';
+                const name = document.createElement('span');
+                name.textContent = p.long_name || p.display_name;
+                const small = document.createElement('small');
+                small.textContent = p.agency_name || '';
+                text.appendChild(name);
+                text.appendChild(small);
+                li.appendChild(badge);
+                li.appendChild(text);
+            }
+
+            li.addEventListener('click', () => choose(item));
+            list.appendChild(li);
+        });
+
+        list.hidden = false;
+        // Give the list room: the sheet grows while searching and the box scrolls to the top
+        sheetEl.classList.add('is-searching');
+        $('route-container').scrollIntoView({ block: 'start' });
+        input.setAttribute('aria-expanded', 'true');
+        active = -1;
+        list.scrollTop = 0;
+    }
+
+    function choose(item) {
+        close();
+        if (item === 'all') {
+            input.value = '';
+            hasRoute = false;
+            pickRoute('all');
+        } else {
+            const p = item.properties;
+            input.value = (p.short_name || '') + ' · ' + (p.long_name || p.display_name);
+            hasRoute = true;
+            pickRoute(p.route_id);
+        }
+    }
+
+    // Keep focus in the box while tapping a result
+    list.addEventListener('mousedown', (event) => event.preventDefault());
+
+    input.addEventListener('focus', () => { input.select(); open(); });
+    input.addEventListener('click', () => { if (list.hidden) open(); });
+
+    input.addEventListener('input', () => {
+        // Clearing the box goes back to showing every route in the region
+        if (!input.value.trim() && hasRoute) {
+            hasRoute = false;
+            pickRoute('all');
+        }
+        open();
+    });
+
+    input.addEventListener('keydown', (event) => {
+        const count = items.length;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (list.hidden) open();
+            else if (count) highlight((active + 1) % count);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (count) highlight((active - 1 + count) % count);
+        } else if (event.key === 'Enter') {
+            if (!list.hidden && count) {
+                event.preventDefault();
+                choose(items[active >= 0 ? active : 0]);
+            }
+        } else if (event.key === 'Escape') {
+            close();
+        }
+    });
+
+    input.addEventListener('blur', close);
+
+    return {
+        // A new region or operator filter: empty the box, nothing picked
+        reset: () => { input.value = ''; hasRoute = false; close(); }
+    };
+}
+
+const routePicker = createRoutePicker();
 
 $('region-select').addEventListener('change', updateRegionView);
 $('filter-tfi').addEventListener('change', updateRegionView);
@@ -404,8 +571,7 @@ function showToast(text) {
 //  Picking one route
 // =========================================
 
-$('route-select').addEventListener('change', (event) => {
-    const routeId = event.target.value;
+function pickRoute(routeId) {
     resetRouteSelection();
 
     if (routeId === 'all') {
@@ -413,7 +579,10 @@ $('route-select').addEventListener('change', (event) => {
         return;
     }
 
-    activeRoute = allRoutes.find((f) => f.properties.route_id === routeId) || null;
+    // A route can have several variants (short turns, other directions). Use the fullest one.
+    activeRoute = allRoutes
+        .filter((f) => f.properties.route_id === routeId)
+        .reduce((best, f) => (!best || (f.properties.stops || []).length > (best.properties.stops || []).length ? f : best), null);
     if (!activeRoute) return;
 
     // Show the stop pickers first: they make the sheet taller, and the map
@@ -424,7 +593,7 @@ $('route-select').addEventListener('change', (event) => {
     drawLines([activeRoute]);
     renderStops();
     fetchLiveBuses();
-});
+}
 
 function fillStopLists() {
     const stops = (activeRoute && activeRoute.properties.stops) || [];
@@ -521,10 +690,9 @@ function renderStops() {
             opacity: 1
         }).addTo(stopsLayer);
 
-        marker.bindPopup(popupContent(stop.name, [
-            'Stop ' + stop.id,
+        bindStopCard(marker, stop, [
             'Stop ' + (index + 1) + ' of ' + stops.length + ' on route ' + activeRoute.properties.short_name
-        ]));
+        ]);
 
         if (stop.id === fromId || stop.id === toId) picked.push([stop.lat, stop.lon]);
     });
@@ -987,11 +1155,209 @@ function segmentLatLngs(feature, fromPos, toPos) {
     return geometry.coordinates.slice(a, b + 1).map((c) => [c[1], c[0]]);
 }
 
+// =========================================
+//  Stop card: what you see when you tap a stop
+//  Shows the buses that serve it and, when the live server has them, the next arrivals.
+// =========================================
+
+const STOP_TIMES_REFRESH_MS = 30000;
+const STOP_TIMES_FRESH_MS = 10000;     // reuse a recent answer instead of asking again
+const stopTimesCache = new Map();      // stop id -> { time, data }
+let stopTimesTimer = null;
+let routeByIdMap = null;
+
+function routeById(routeId) {
+    if (!routeByIdMap) {
+        routeByIdMap = new Map();
+        allRoutes.forEach((f) => routeByIdMap.set(f.properties.route_id, f));
+    }
+    return routeByIdMap.get(routeId) || null;
+}
+
+function routeBadge(feature, fallbackText) {
+    const badge = document.createElement('span');
+    badge.className = 'bus-badge' + (feature && isCitylink(feature) ? ' is-citylink' : '');
+    badge.textContent = feature ? (feature.properties.short_name || '?') : (fallbackText || '?');
+    return badge;
+}
+
+// The distinct routes that stop at this stop, in number order
+function routesAtStop(stopId) {
+    const entry = stopIndex.get(String(stopId));
+    if (!entry) return [];
+    const seen = new Map();
+    for (let i = 0; i < entry.hits.length; i += 2) {
+        const feature = allRoutes[entry.hits[i]];
+        if (feature && !seen.has(feature.properties.display_name)) seen.set(feature.properties.display_name, feature);
+    }
+    return Array.from(seen.values()).sort((a, b) =>
+        String(a.properties.short_name).localeCompare(String(b.properties.short_name), undefined, { numeric: true }));
+}
+
+function formatArrival(secondsFromNow, epochSeconds) {
+    if (secondsFromNow <= 60) return 'Due';
+    const minutes = Math.round(secondsFromNow / 60);
+    if (minutes < 60) return minutes + ' min';
+    return new Date(epochSeconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDelay(delaySeconds) {
+    if (delaySeconds === null || delaySeconds === undefined) return '';
+    const minutes = Math.round(delaySeconds / 60);
+    if (minutes === 0) return 'On time';
+    return minutes > 0 ? minutes + ' min late' : Math.abs(minutes) + ' min early';
+}
+
+function renderStopTimes(container, data) {
+    container.innerHTML = '';
+    const nowSeconds = data.now || Math.floor(Date.now() / 1000);
+    const rows = data.arrivals.slice(0, 5);
+
+    if (rows.length === 0) {
+        const none = document.createElement('p');
+        none.className = 'stop-times-note';
+        none.textContent = 'No buses due soon.';
+        container.appendChild(none);
+        return;
+    }
+
+    rows.forEach((a) => {
+        const feature = routeById(a.routeId);
+        const row = document.createElement('div');
+        row.className = 'stop-time-row';
+        row.appendChild(routeBadge(feature, '?'));
+
+        const text = document.createElement('div');
+        text.className = 'stop-time-text';
+        const where = document.createElement('span');
+        where.textContent = feature ? (feature.properties.long_name || feature.properties.display_name) : 'Route unknown';
+        text.appendChild(where);
+        const delay = formatDelay(a.delay);
+        if (delay) {
+            const small = document.createElement('small');
+            small.textContent = delay;
+            small.className = a.delay > 60 ? 'is-late' : (a.delay < -60 ? 'is-early' : 'is-ontime');
+            text.appendChild(small);
+        }
+        row.appendChild(text);
+
+        const when = document.createElement('strong');
+        when.className = 'stop-time-when';
+        when.textContent = a.time !== null ? formatArrival(a.time - nowSeconds, a.time) : '';
+        row.appendChild(when);
+
+        container.appendChild(row);
+    });
+}
+
+async function loadStopTimes(container, stopId) {
+    const cached = stopTimesCache.get(stopId);
+    if (cached && Date.now() - cached.time < STOP_TIMES_FRESH_MS) {
+        renderStopTimes(container, cached.data);
+        return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+    try {
+        const response = await fetch(CONFIG.STOP_TIMES_URL + '?stop_id=' + encodeURIComponent(stopId), { signal: controller.signal });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        if (!data || !Array.isArray(data.arrivals)) throw new Error('Unexpected reply');
+        stopTimesCache.set(stopId, { time: Date.now(), data: data });
+        if (container.isConnected) renderStopTimes(container, data);
+    } catch (error) {
+        console.warn('Stop times unavailable:', error);
+        if (container.isConnected) {
+            container.innerHTML = '';
+            const note = document.createElement('p');
+            note.className = 'stop-times-note';
+            note.textContent = 'Live times are not available right now.';
+            container.appendChild(note);
+        }
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+// extraLines: small grey lines under the name. titlePrefix: for example "From".
+function stopCard(stop, extraLines, titlePrefix) {
+    const box = document.createElement('div');
+    box.className = 'stop-card';
+
+    const heading = document.createElement('span');
+    heading.className = 'popup-title';
+    heading.textContent = (titlePrefix ? titlePrefix + ': ' : '') + stop.name;
+    box.appendChild(heading);
+
+    ['Stop ' + stop.id].concat(extraLines || []).filter(Boolean).forEach((text) => {
+        const line = document.createElement('span');
+        line.className = 'popup-line';
+        line.textContent = text;
+        box.appendChild(line);
+    });
+
+    // Buses that stop here
+    const routes = routesAtStop(stop.id);
+    if (routes.length) {
+        const title = document.createElement('h3');
+        title.className = 'stop-card-title';
+        title.textContent = routes.length === 1 ? 'Bus that stops here' : 'Buses that stop here';
+        box.appendChild(title);
+
+        const chips = document.createElement('div');
+        chips.className = 'stop-chips';
+        routes.slice(0, 10).forEach((feature) => {
+            const chip = routeBadge(feature);
+            chip.title = feature.properties.long_name || '';
+            chips.appendChild(chip);
+        });
+        if (routes.length > 10) {
+            const more = document.createElement('span');
+            more.className = 'stop-chips-more';
+            more.textContent = '+' + (routes.length - 10) + ' more';
+            chips.appendChild(more);
+        }
+        box.appendChild(chips);
+    }
+
+    // Next buses (needs the live server)
+    clearInterval(stopTimesTimer);
+    if (CONFIG.STOP_TIMES_URL) {
+        const title = document.createElement('h3');
+        title.className = 'stop-card-title';
+        title.textContent = 'Next buses';
+        box.appendChild(title);
+
+        const times = document.createElement('div');
+        times.className = 'stop-times';
+        times.setAttribute('aria-live', 'polite');
+        const loading = document.createElement('p');
+        loading.className = 'stop-times-note';
+        loading.textContent = 'Checking live times…';
+        times.appendChild(loading);
+        box.appendChild(times);
+
+        loadStopTimes(times, String(stop.id));
+        stopTimesTimer = setInterval(() => {
+            if (times.isConnected && !document.hidden) loadStopTimes(times, String(stop.id));
+        }, STOP_TIMES_REFRESH_MS);
+    }
+
+    return box;
+}
+
+function bindStopCard(marker, stop, extraLines, titlePrefix) {
+    marker.bindPopup(() => stopCard(stop, extraLines, titlePrefix), { minWidth: 230, maxWidth: 290 });
+}
+
+map.on('popupclose', () => clearInterval(stopTimesTimer));
+
 function endpointMarker(stop, color, label) {
     const marker = L.circleMarker([stop.lat, stop.lon], {
         radius: 10, fillColor: color, fillOpacity: 1, color: '#ffffff', weight: 3, opacity: 1
     });
-    marker.bindPopup(popupContent(label + ': ' + stop.name, ['Stop ' + stop.id]));
+    bindStopCard(marker, stop, [], label);
     return marker;
 }
 
@@ -1303,7 +1669,8 @@ function updateNearby() {
     near.forEach((item) => {
         const marker = L.circleMarker([item.stop.lat, item.stop.lon], {
             radius: 7, color: '#ffffff', weight: 2, fillColor: COLORS.route, fillOpacity: 1
-        }).bindPopup(popupContent(item.stop.name, [formatDistance(item.d) + ' away']));
+        });
+        bindStopCard(marker, item.stop, [formatDistance(item.d) + ' away']);
         nearbyLayer.addLayer(marker);
 
         const li = document.createElement('li');
