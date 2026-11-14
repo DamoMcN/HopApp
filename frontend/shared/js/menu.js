@@ -13,7 +13,7 @@ const MENU_ITEMS = [
     { label: 'Tickets',  href: '../tickets/tickets.html' },
     { label: 'Top Up',   href: '../topup/topup.html' },
     { label: 'Recurring Top Up', href: '../recurring/recurring.html' },
-    // { label: 'Settings', href: '../settings/settings.html' },
+    { label: 'Settings', href: '../setting/setting.html' },
 ];
 
 const SUPPORT_ITEM = { label: 'Help & Support', href: '../support/support.html', icon: '?' };
