@@ -37,3 +37,67 @@ jobs:
           path: playwright-report/
           retention-days: 14
           if-no-files-found: ignore
+
+  db-test:
+    # Real PHP and MySQL: a MySQL container plus PHP's built-in web server stand in for WAMP
+    name: Run database tests
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      HOP_APP_URL: http://127.0.0.1:8080/
+      HOP_DB_HOST: 127.0.0.1
+      HOP_DB_USER: root
+      HOP_DB_PASS: root
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start PHP web server
+        run: |
+          php -S 127.0.0.1:8080 -t . > php-server.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:8080/backend/auth/session.php && break; sleep 1; done
+
+      - name: Run database tests
+        run: npm run test:db
+
+      - name: Show PHP server log
+        if: failure()
+        run: cat php-server.log
+
+      - name: Upload HTML test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-db
+          path: playwright-report-db/
+          retention-days: 14
+          if-no-files-found: ignore

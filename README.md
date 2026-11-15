@@ -121,6 +121,16 @@ npx playwright install     # first time only
 npx playwright test
 ```
 
+These tests fake the PHP replies, so they need no WAMP and run on GitHub Actions.
+
+**Database tests** call the real PHP and MySQL, so WAMP must be running:
+
+```bash
+npm run test:db
+```
+
+They build a separate `hop_app_test` database from `database/hop_app_db.sql`, so your `hop_app_db` data is never touched. While they run, a git-ignored `backend/db_config.local.php` points the PHP at `hop_app_test`; it is deleted when they finish. They are in `tests-db/` and cover sign up, log in and out, top up and card status. If this folder is not at `C:\wamp64\www\...`, set `HOP_APP_URL` (for example `http://localhost/HopApp/HopApp-tests/`); see `tests-db/db.js` for the other settings.
+
 </details>
 
 ---
@@ -369,7 +379,8 @@ HopApp/
 │   └── db_connect.php
 ├── database/       Schema and migrations
 ├── docs/screens/   Screen previews used in this README
-└── tests/          Playwright tests
+├── tests/          Playwright tests (fake backend)
+└── tests-db/       Database tests (real PHP and MySQL on WAMP)
 ```
 
 </details>
