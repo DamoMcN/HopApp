@@ -39,6 +39,24 @@ CREATE TABLE IF NOT EXISTS `favourite_routes` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `favourites`
+--
+
+DROP TABLE IF EXISTS `favourites`;
+CREATE TABLE IF NOT EXISTS `favourites` (
+  `favourite_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `fav_type` enum('route','stop') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `item_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`favourite_id`),
+  UNIQUE KEY `unique_user_favourite` (`user_id`,`fav_type`,`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `recurring_topups`
 -- One recurring top up per user (see recurring_topups_migration.sql).
 --
@@ -173,6 +191,12 @@ CREATE TABLE IF NOT EXISTS `users` (
 --
 ALTER TABLE `favourite_routes`
   ADD CONSTRAINT `favourite_routes_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `favourites`
+--
+ALTER TABLE `favourites`
+  ADD CONSTRAINT `favourites_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `recurring_topups`

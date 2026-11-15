@@ -69,6 +69,26 @@ function popupContent(title, lines) {
     return box;
 }
 
+// A stop popup with a "Save stop" button underneath
+function stopPopup(stop, lines, title) {
+    const box = popupContent(title || stop.name, lines);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'popup-fav';
+    const refresh = () => {
+        const saved = isFavourite('stop', stop.id);
+        button.setAttribute('aria-pressed', String(saved));
+        button.textContent = saved ? '★ Saved' : '☆ Save stop';
+    };
+    refresh();
+    button.addEventListener('click', async () => {
+        await toggleFavourite('stop', stop.id, stop.name);
+        refresh();
+    });
+    box.appendChild(button);
+    return box;
+}
+
 function isCitylink(feature) {
     return (feature.properties.agency_name || '').toLowerCase().includes('citylink');
 }
@@ -183,6 +203,7 @@ async function loadRoutes() {
 
     fillRegions();
     buildStopIndex();
+    renderFavourites();
     refreshLocationFeatures();
     hideMapMessage();
     startInRequestedMode();
@@ -323,6 +344,7 @@ function resetRouteSelection() {
     $('arrive-list').innerHTML = '';
     $('trip-hint').textContent = '';
     setLiveStatus('');
+    updateRouteFavButton();
 }
 
 let regionToken = 0;
@@ -415,6 +437,7 @@ $('route-select').addEventListener('change', (event) => {
 
     activeRoute = allRoutes.find((f) => f.properties.route_id === routeId) || null;
     if (!activeRoute) return;
+    updateRouteFavButton();
 
     // Show the stop pickers first: they make the sheet taller, and the map
     // needs to know the final sheet height to frame the route above it
@@ -521,7 +544,7 @@ function renderStops() {
             opacity: 1
         }).addTo(stopsLayer);
 
-        marker.bindPopup(popupContent(stop.name, [
+        marker.bindPopup(() => stopPopup(stop, [
             'Stop ' + stop.id,
             'Stop ' + (index + 1) + ' of ' + stops.length + ' on route ' + activeRoute.properties.short_name
         ]));
@@ -633,9 +656,9 @@ document.addEventListener('visibilitychange', () => {
 //  Tabs: Route view / Buy a ticket
 // =========================================
 
-const MODES = ['routes', 'tickets'];
-const TAB_IDS = { routes: 'tab-routes', tickets: 'tab-ticket' };
-const PANEL_IDS = { routes: 'panel-routes', tickets: 'panel-ticket' };
+const MODES = ['routes', 'tickets', 'favourites'];
+const TAB_IDS = { routes: 'tab-routes', tickets: 'tab-ticket', favourites: 'tab-favs' };
+const PANEL_IDS = { routes: 'panel-routes', tickets: 'panel-ticket', favourites: 'panel-favs' };
 let mode = 'routes';
 let routesBounds = null;    // what Route view was showing, so switching back can reframe it
 let ticketBounds = null;
@@ -653,13 +676,14 @@ function setMode(next, options) {
     });
     sheet.dataset.mode = mode;
 
-    // Each mode keeps its own layers; only the active mode's are on the map
+    // Each mode keeps its own layers; only the active mode's are on the map.
+    // Favourites shares the Route view layers, so opening a favourite shows it in place.
     if (mode === 'tickets') {
-        [linesLayer, stopsLayer, busesLayer, nearbyLayer].forEach((l) => map.removeLayer(l));
+        [linesLayer, stopsLayer, busesLayer, nearbyLayer, favStopLayer].forEach((l) => map.removeLayer(l));
         ticketLayer.addTo(map);
     } else {
         map.removeLayer(ticketLayer);
-        [linesLayer, stopsLayer, busesLayer].forEach((l) => l.addTo(map));
+        [linesLayer, stopsLayer, busesLayer, favStopLayer].forEach((l) => l.addTo(map));
         if (nearbyLayer.getLayers().length) nearbyLayer.addTo(map);
         if (activeRoute) fetchLiveBuses();
     }
@@ -991,7 +1015,7 @@ function endpointMarker(stop, color, label) {
     const marker = L.circleMarker([stop.lat, stop.lon], {
         radius: 10, fillColor: color, fillOpacity: 1, color: '#ffffff', weight: 3, opacity: 1
     });
-    marker.bindPopup(popupContent(label + ': ' + stop.name, ['Stop ' + stop.id]));
+    marker.bindPopup(() => stopPopup(stop, ['Stop ' + stop.id], label + ': ' + stop.name));
     return marker;
 }
 
@@ -1303,7 +1327,7 @@ function updateNearby() {
     near.forEach((item) => {
         const marker = L.circleMarker([item.stop.lat, item.stop.lon], {
             radius: 7, color: '#ffffff', weight: 2, fillColor: COLORS.route, fillOpacity: 1
-        }).bindPopup(popupContent(item.stop.name, [formatDistance(item.d) + ' away']));
+        }).bindPopup(() => stopPopup(item.stop, [formatDistance(item.d) + ' away']));
         nearbyLayer.addLayer(marker);
 
         const li = document.createElement('li');
@@ -1451,8 +1475,239 @@ function initLocation() {
 }
 
 // =========================================
+//  Favourites
+//  Saved routes and stops live in the database (backend/auth/favourites.php),
+//  so they are still there next time the person logs in, on any device.
+// =========================================
+
+const FAV_URL = '../../backend/auth/favourites.php';
+
+let favourites = [];        // [{ type: 'route' | 'stop', item_id, label }]
+let favState = 'loading';   // 'loading' | 'ready' | 'logged_out' | 'error'
+
+const favStopLayer = L.layerGroup().addTo(map);   // the stop opened from the Favourites list
+
+function isFavourite(type, id) {
+    return favourites.some((f) => f.type === type && f.item_id === String(id));
+}
+
+async function loadFavourites() {
+    try {
+        const response = await fetch(FAV_URL, { cache: 'no-store' });
+        if (response.status === 401) {
+            favState = 'logged_out';
+            favourites = [];
+        } else {
+            const data = await response.json();
+            if (!data.success) throw new Error(data.error || 'HTTP ' + response.status);
+            favourites = data.favourites;
+            favState = 'ready';
+        }
+    } catch (error) {
+        console.error('Could not load favourites:', error);
+        favState = 'error';
+    }
+    renderFavourites();
+    updateRouteFavButton();
+}
+
+async function toggleFavourite(type, id, label) {
+    if (favState === 'logged_out') {
+        showToast('Log in to save favourites.');
+        return;
+    }
+
+    const adding = !isFavourite(type, id);
+    try {
+        const response = await fetch(FAV_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: adding ? 'add' : 'remove', type: type, item_id: String(id), label: label })
+        });
+        if (response.status === 401) {
+            favState = 'logged_out';
+            favourites = [];
+            renderFavourites();
+            updateRouteFavButton();
+            showToast('Log in to save favourites.');
+            return;
+        }
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || 'HTTP ' + response.status);
+        favourites = data.favourites;
+        favState = 'ready';
+    } catch (error) {
+        console.error('Could not update favourites:', error);
+        showToast(adding ? "Couldn't save that. Please try again." : "Couldn't remove that. Please try again.");
+        return;
+    }
+
+    renderFavourites();
+    updateRouteFavButton();
+    showToast(adding ? label + ' saved to favourites' : label + ' removed from favourites');
+}
+
+// ----- Star next to the Route dropdown -----
+
+// "64 Galway - Killea" (the operator is shown underneath in the Favourites list)
+function routeLabel(feature) {
+    const p = feature.properties;
+    return [p.short_name, p.long_name].filter(Boolean).join(' ') || p.display_name || 'Route';
+}
+
+function updateRouteFavButton() {
+    const button = $('route-fav-btn');
+    button.hidden = !activeRoute;
+    if (!activeRoute) return;
+    const saved = isFavourite('route', activeRoute.properties.route_id);
+    const text = saved ? 'Remove route from favourites' : 'Save route to favourites';
+    button.setAttribute('aria-pressed', String(saved));
+    button.setAttribute('aria-label', text);
+    button.title = text;
+}
+
+$('route-fav-btn').addEventListener('click', () => {
+    if (activeRoute) toggleFavourite('route', activeRoute.properties.route_id, routeLabel(activeRoute));
+});
+
+// ----- Favourites tab -----
+
+const ICON_ROUTE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="14" rx="3"/>' +
+    '<path d="M4 11h16M8 17v3M16 17v3"/><circle cx="8" cy="14" r=".6"/><circle cx="16" cy="14" r=".6"/></svg>';
+const ICON_STOP = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+
+function favDetail(fav) {
+    if (fav.type === 'route') {
+        const feature = allRoutes.find((f) => String(f.properties.route_id) === fav.item_id);
+        if (!feature) return 'Route';
+        return [feature.properties.agency_name, feature.properties.region].filter(Boolean).join(' · ');
+    }
+    const stop = stopIndex.get(fav.item_id);
+    if (!stop) return 'Stop ' + fav.item_id;
+    const routeCount = stop.hits.length / 2;
+    return 'Stop ' + fav.item_id + ' · ' + routeCount + (routeCount === 1 ? ' route' : ' routes');
+}
+
+function favRow(fav) {
+    const li = document.createElement('li');
+    li.className = 'fav-item';
+
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'fav-open';
+
+    const icon = document.createElement('span');
+    icon.className = 'fav-icon is-' + fav.type;
+    icon.innerHTML = fav.type === 'route' ? ICON_ROUTE : ICON_STOP;
+
+    const text = document.createElement('span');
+    text.className = 'fav-text';
+    const name = document.createElement('strong');
+    name.textContent = fav.label;
+    const detail = document.createElement('small');
+    detail.textContent = favDetail(fav);
+    text.appendChild(name);
+    text.appendChild(detail);
+
+    open.appendChild(icon);
+    open.appendChild(text);
+    open.addEventListener('click', () => (fav.type === 'route' ? openFavouriteRoute(fav) : openFavouriteStop(fav)));
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'fav-remove';
+    remove.setAttribute('aria-label', 'Remove ' + fav.label + ' from favourites');
+    remove.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+    remove.addEventListener('click', () => toggleFavourite(fav.type, fav.item_id, fav.label));
+
+    li.appendChild(open);
+    li.appendChild(remove);
+    return li;
+}
+
+function renderFavourites() {
+    const routes = favourites.filter((f) => f.type === 'route');
+    const stops = favourites.filter((f) => f.type === 'stop');
+    const empty = $('fav-empty');
+
+    $('fav-routes').innerHTML = '';
+    $('fav-stops').innerHTML = '';
+    routes.forEach((fav) => $('fav-routes').appendChild(favRow(fav)));
+    stops.forEach((fav) => $('fav-stops').appendChild(favRow(fav)));
+    $('fav-routes-group').hidden = routes.length === 0;
+    $('fav-stops-group').hidden = stops.length === 0;
+
+    empty.innerHTML = '';
+    empty.hidden = favState === 'ready' && favourites.length > 0;
+    if (favState === 'loading') {
+        empty.textContent = 'Loading your favourites…';
+    } else if (favState === 'logged_out') {
+        empty.append('Your favourite routes and stops are saved to your account. ');
+        const link = document.createElement('a');
+        link.href = '../auth/index.html';
+        link.textContent = 'Log in to see them';
+        empty.appendChild(link);
+    } else if (favState === 'error') {
+        empty.textContent = "We couldn't load your favourites. Please try again later.";
+    } else {
+        empty.textContent = 'No favourites yet. Pick a route in Route view and tap the star, ' +
+            'or tap any stop on the map and choose Save stop.';
+    }
+}
+
+async function openFavouriteRoute(fav) {
+    const feature = allRoutes.find((f) => String(f.properties.route_id) === fav.item_id);
+    if (!feature) {
+        showToast(allRoutes.length ? 'This route is no longer in the map data.' : 'Routes are still loading…');
+        return;
+    }
+
+    setMode('routes', { expand: true });
+    favStopLayer.clearLayers();
+
+    // Make sure the route isn't hidden by the operator filters
+    $(isCitylink(feature) ? 'filter-citylink' : 'filter-tfi').checked = true;
+    $('region-select').value = feature.properties.region;
+    await updateRegionView();
+
+    // The dropdown lists each route name once, so the saved route may appear under a twin's id
+    const select = $('route-select');
+    const option = Array.from(select.options).find((o) => o.value === fav.item_id) ||
+        Array.from(select.options).find((o) => o.textContent === feature.properties.display_name);
+    if (!option) return;
+    select.value = option.value;
+    select.dispatchEvent(new Event('change'));
+}
+
+function openFavouriteStop(fav) {
+    const stop = stopIndex.get(fav.item_id);
+    if (!stop) {
+        showToast(allRoutes.length ? 'This stop is no longer in the map data.' : 'Stops are still loading…');
+        return;
+    }
+
+    setMode('routes');
+    favStopLayer.clearLayers();
+    const marker = L.circleMarker([stop.lat, stop.lon], {
+        radius: 10, fillColor: COLORS.route, fillOpacity: 1, color: '#ffffff', weight: 3, opacity: 1
+    }).bindPopup(() => stopPopup(stop, [favDetail(fav)])).addTo(favStopLayer);
+
+    // After setMode has finished re-framing the map
+    const ll = L.latLng(stop.lat, stop.lon);
+    setTimeout(() => {
+        fitTo(L.latLngBounds([ll, ll]), { maxZoom: 16 });
+        marker.openPopup();
+    }, 100);
+}
+
+// =========================================
 //  Go
 // =========================================
 
 loadRoutes();
+loadFavourites();
 initLocation();

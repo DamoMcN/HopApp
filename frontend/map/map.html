@@ -67,6 +67,8 @@
                         aria-selected="true" aria-controls="panel-routes">Route view</button>
                 <button type="button" role="tab" id="tab-ticket" class="sheet-tab"
                         aria-selected="false" aria-controls="panel-ticket" tabindex="-1">Buy a ticket</button>
+                <button type="button" role="tab" id="tab-favs" class="sheet-tab"
+                        aria-selected="false" aria-controls="panel-favs" tabindex="-1">Favourites</button>
             </div>
 
             <div class="sheet-body" id="sheet-body">
@@ -109,9 +111,18 @@
 
                     <div id="route-container" class="field" hidden>
                         <label for="route-select">Route</label>
-                        <select id="route-select">
-                            <option value="all">Show all in region</option>
-                        </select>
+                        <div class="select-row">
+                            <select id="route-select">
+                                <option value="all">Show all in region</option>
+                            </select>
+                            <button type="button" id="route-fav-btn" class="fav-btn" aria-pressed="false"
+                                    aria-label="Save route to favourites" title="Save route to favourites" hidden>
+                                <svg width="22" height="22" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                                     stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <div id="stop-selectors" hidden>
@@ -182,6 +193,18 @@
 
                     <div class="ticket-footer">
                         <button type="button" id="ticket-continue" class="continue-btn" disabled>Continue to ticket</button>
+                    </div>
+                  </div>
+
+                  <div id="panel-favs" role="tabpanel" aria-labelledby="tab-favs" hidden>
+                    <p id="fav-empty" class="fav-empty">Loading your favourites&hellip;</p>
+                    <div id="fav-routes-group" class="fav-group" hidden>
+                        <h2 class="fav-heading">Routes</h2>
+                        <ul id="fav-routes" class="fav-list" aria-label="Favourite routes"></ul>
+                    </div>
+                    <div id="fav-stops-group" class="fav-group" hidden>
+                        <h2 class="fav-heading">Stops</h2>
+                        <ul id="fav-stops" class="fav-list" aria-label="Favourite stops"></ul>
                     </div>
                   </div>
                 </div>
