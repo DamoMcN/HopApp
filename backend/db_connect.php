@@ -8,10 +8,17 @@
 // that and replies with a friendly JSON error (nothing technical is shown to
 // the person using the app).
 
-const HOP_DB_HOST    = 'localhost';
-const HOP_DB_NAME    = 'hop_app_db';
-const HOP_DB_USER    = 'root';
-const HOP_DB_PASS    = '';
+// Optional override, git-ignored: backend/db_config.local.php can return
+// ['host' => ..., 'name' => ..., 'user' => ..., 'pass' => ...] (any of them).
+// The database tests (npm run test:db) use it to point the app at the
+// hop_app_test database while they run, then delete it.
+$hopDbLocal = is_file(__DIR__ . '/db_config.local.php') ? (require __DIR__ . '/db_config.local.php') : [];
+if (!is_array($hopDbLocal)) $hopDbLocal = [];
+
+define('HOP_DB_HOST', $hopDbLocal['host'] ?? 'localhost');
+define('HOP_DB_NAME', $hopDbLocal['name'] ?? 'hop_app_db');
+define('HOP_DB_USER', $hopDbLocal['user'] ?? 'root');
+define('HOP_DB_PASS', $hopDbLocal['pass'] ?? '');
 const HOP_DB_CHARSET = 'utf8mb4';
 
 function hop_pdo(): PDO {
