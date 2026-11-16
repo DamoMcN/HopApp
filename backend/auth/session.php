@@ -34,7 +34,7 @@ try {
 // Read fresh values from the database so the balance is always current
 try {
     $stmt = $pdo->prepare(
-        'SELECT f_name, card_type, card_number, card_status, card_expiry, wallet_balance
+        'SELECT user_id, f_name, l_name, email, card_type, card_number, card_status, card_expiry, wallet_balance
          FROM users WHERE email = ?'
     );
     $stmt->execute([$_SESSION['email']]);
@@ -54,7 +54,10 @@ if (!$row) {
 
 echo json_encode([
     'logged_in'      => true,
+    'user_id'        => (int) $row['user_id'],
     'f_name'         => $row['f_name'],
+    'l_name'         => $row['l_name'],
+    'email'          => $row['email'],
     'card_type'      => $row['card_type'],
     'card_number'    => $row['card_number'],
     'card_status'    => $row['card_status'],
