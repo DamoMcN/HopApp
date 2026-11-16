@@ -5,7 +5,7 @@ const { test, expect } = require('@playwright/test');
 // the tests fast. Leaflet still loads from unpkg.
 
 const STOP = { id: '8460B525641', name: 'Eyre Square' };
-const ROUTE_409 = '2 409 c a';    // a Galway route id from data/index.json that stops at Eyre Square
+const ROUTE_409 = '2_409_c_a';    // a Galway route id from data/index.json that stops at Eyre Square
 
 // arrivals(now) returns the fake stop-times list; null makes the server answer 404
 async function openMap(page, { arrivals = () => [], saved, hidden = false } = {}) {
