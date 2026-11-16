@@ -88,33 +88,54 @@ async function fetchFeed(url) {
     return GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
 }
 
-let cache = { time: 0, vehicles: [] };
+// Both feeds share one pattern: serve from cache, refresh when old, and if the NTA says "too many
+// requests" (429) or fails, keep serving the last good data and leave the NTA alone for a while.
+function cachedFeed(url, parse, maxAgeMs, label) {
+    let data = null;
+    let time = 0;
+    let pausedUntil = 0;
+    let inFlight = null;
 
-async function loadVehicles() {
-    if (Date.now() - cache.time < CACHE_MS) return cache.vehicles;
-    const vehicles = parseVehicles(await fetchFeed(NTA_URL), tripRoutes);
-    cache = { time: Date.now(), vehicles: vehicles };
-    return vehicles;
+    return async function load() {
+        const now = Date.now();
+        if (data !== null && (now - time < maxAgeMs || now < pausedUntil)) return data;
+        if (inFlight) return inFlight;   // many requests at once share one NTA call
+
+        inFlight = (async () => {
+            try {
+                data = parse(await fetchFeed(url));
+                time = Date.now();
+                return data;
+            } catch (error) {
+                if (/ 429 /.test(error.message)) pausedUntil = Date.now() + 60 * 1000;
+                if (data !== null) {
+                    console.warn(label + ': using the last good data (' + error.message + ')');
+                    return data;
+                }
+                throw error;
+            } finally {
+                inFlight = null;
+            }
+        })();
+        return inFlight;
+    };
 }
 
-// Trip updates are a bigger feed, so they are kept a little longer
-const TRIPS_CACHE_MS = 15 * 1000;
-let tripCache = { time: 0, byStop: new Map() };
-
-async function loadTripUpdates() {
-    if (Date.now() - tripCache.time < TRIPS_CACHE_MS) return tripCache.byStop;
-    const byStop = parseTripUpdates(await fetchFeed(NTA_TRIPS_URL), tripRoutes);
-    tripCache = { time: Date.now(), byStop: byStop };
-    return byStop;
-}
+const loadVehicles = cachedFeed(NTA_URL, (feed) => parseVehicles(feed, tripRoutes), 30 * 1000, 'vehicles');
+const loadTripUpdates = cachedFeed(NTA_TRIPS_URL, (feed) => parseTripUpdates(feed, tripRoutes), 60 * 1000, 'trip updates');
 
 app.get('/api/vehicles', async (req, res) => {
     try {
         const routeId = req.query.route_id;
         const vehicles = await loadVehicles();
-        const result = (routeId ? vehicles.filter((v) => v.routeId === routeId) : vehicles)
-            .map(({ routeId: _ignored, ...rest }) => rest);
-        res.json(result);
+        const list = routeId ? vehicles.filter((v) => v.routeId === routeId) : vehicles;
+        if (req.query.debug) {
+            // ?debug=1 shows how many live buses matched a route, to check trip-routes.json is current
+            const matched = vehicles.filter((v) => v.routeId).length;
+            console.log('debug: ' + vehicles.length + ' live buses, ' + matched + ' matched to a route');
+            return res.json({ total: vehicles.length, matched: matched, routeId: routeId || null, buses: list.slice(0, 50) });
+        }
+        res.json(list.map(({ routeId: _ignored, ...rest }) => rest));
     } catch (error) {
         console.error('NTA fetch error:', error.message);   // detail stays in this console
         res.status(502).json({ error: 'Live bus data is not available right now' });

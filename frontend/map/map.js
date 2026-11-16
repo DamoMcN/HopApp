@@ -758,7 +758,8 @@ async function fetchLiveBuses() {
 
     try {
         const response = await fetch(CONFIG.LIVE_URL + '?route_id=' + encodeURIComponent(routeId), {
-            signal: controller.signal
+            signal: controller.signal,
+            cache: 'no-store'   // never reuse an old answer (a cached empty list looked like "no buses")
         });
         if (!response.ok) throw new Error('HTTP ' + response.status);
         const buses = await response.json();
