@@ -9,10 +9,10 @@ const STOP_SKIPPED = 1;    // StopTimeUpdate.ScheduleRelationship.SKIPPED
 // The NTA feeds often give only a trip id. trip-routes.json (made by build-trip-routes.js from
 // trips.txt) says which route each trip belongs to: { routes: [route_id, ...], trips: { trip_id: index } }
 function routeFor(trip, lookup) {
-    if (trip.routeId) return trip.routeId;
-    if (!lookup || !trip.tripId) return null;
-    const index = lookup.trips[trip.tripId];
-    return index === undefined ? null : lookup.routes[index];
+    // Prefer our own trip -> route table: its route ids are the ones the map uses. The live feed's
+    // own route id can be in a different style (newer GTFS), so it is only the fallback.
+    if (lookup && trip.tripId && lookup.trips[trip.tripId] !== undefined) return lookup.routes[lookup.trips[trip.tripId]];
+    return trip.routeId || null;
 }
 
 // Vehicle positions: [{ id, routeId, lat, lon, speed, timestamp }]
@@ -22,6 +22,7 @@ function parseVehicles(feed, lookup) {
         .map((e) => ({
             id: e.id,
             routeId: routeFor(e.vehicle.trip, lookup),
+            tripId: e.vehicle.trip.tripId || null,
             lat: e.vehicle.position.latitude,
             lon: e.vehicle.position.longitude,
             speed: e.vehicle.position.speed || null,   // metres per second

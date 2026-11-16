@@ -131,11 +131,11 @@ app.get('/api/vehicles', async (req, res) => {
         const list = routeId ? vehicles.filter((v) => v.routeId === routeId) : vehicles;
         if (req.query.debug) {
             // ?debug=1 shows how many live buses matched a route, to check trip-routes.json is current
-            const matched = vehicles.filter((v) => v.routeId).length;
+            const matched = vehicles.filter((v) => v.routeId && tripRoutes && tripRoutes.routes.includes(v.routeId)).length;   // route ids our map knows
             console.log('debug: ' + vehicles.length + ' live buses, ' + matched + ' matched to a route');
             return res.json({ total: vehicles.length, matched: matched, routeId: routeId || null, buses: list.slice(0, 50) });
         }
-        res.json(list.map(({ routeId: _ignored, ...rest }) => rest));
+        res.json(list.map(({ routeId: _r, tripId: _t, ...rest }) => rest));
     } catch (error) {
         console.error('NTA fetch error:', error.message);   // detail stays in this console
         res.status(502).json({ error: 'Live bus data is not available right now' });
