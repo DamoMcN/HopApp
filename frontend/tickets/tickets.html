@@ -43,8 +43,9 @@
 
             <p class="journey-between" id="j-between"></p>
 
-            <button class="buy-btn" type="button" disabled>Buy ticket</button>
-            <p class="journey-note">Buying tickets is coming soon. Your journey is saved until you close the app.</p>
+            <p class="ticket-price" id="ticket-price" hidden></p>
+            <button class="buy-btn" id="buy-btn" type="button" disabled>Buy ticket</button>
+            <p class="journey-note">Paid from your Hop Card balance. Your journey is saved until you close the app.</p>
 
             <div class="journey-actions">
                 <a href="../map/map.html?mode=tickets">Change journey</a>
@@ -63,6 +64,30 @@
             <a href="../map/map.html?mode=tickets">Plan a journey</a>
         </section>
     </main>
+
+    <!-- Pay for the ticket with the Hop Card balance. Views are switched by tickets.js -->
+    <dialog id="pay-dialog" class="pay-dialog" aria-labelledby="pay-title">
+        <h2 id="pay-title">Confirm payment</h2>
+
+        <div id="pay-review">
+            <p class="pay-journey" id="pay-journey"></p>
+            <dl class="pay-rows">
+                <div><dt>Ticket price</dt><dd id="pay-price"></dd></div>
+                <div><dt>Hop Card balance</dt><dd id="pay-balance"></dd></div>
+                <div><dt>Balance after</dt><dd id="pay-after"></dd></div>
+            </dl>
+            <button id="pay-confirm" class="buy-btn" type="button">Confirm payment</button>
+            <button id="pay-cancel" class="pay-secondary" type="button">Cancel</button>
+        </div>
+
+        <div id="pay-result" role="status" hidden>
+            <div id="pay-mark" class="pay-mark" aria-hidden="true"></div>
+            <p id="pay-result-title" class="pay-result-title"></p>
+            <p id="pay-result-text"></p>
+            <a id="pay-topup" class="buy-btn pay-link" href="../topup/topup.html" hidden>Top up</a>
+            <button id="pay-close" class="pay-secondary" type="button">Close</button>
+        </div>
+    </dialog>
 
     <script src="../shared/js/menu.js?v=20261111-settings-nav"></script>
     <script src="../shared/js/navbar.js"></script>
