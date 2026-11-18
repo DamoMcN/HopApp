@@ -888,6 +888,69 @@ function buildStopIndex() {
         });
     });
     stopList = Array.from(stopIndex.values());
+    buildPlaces();
+}
+
+// =========================================
+//  Places: stops with the same name next to each other
+//  "Eyre Square" is ten poles around the square, and most stops have one on each side of the road.
+//  Searching shows the place once, and finding buses uses every pole in it.
+// =========================================
+
+const PLACE_RADIUS_M = 400;
+let placeList = [];
+const placeOfStop = new Map();   // stop id -> place
+
+function buildPlaces() {
+    placeList = [];
+    placeOfStop.clear();
+    const byName = new Map();
+    stopList.forEach((stop) => {
+        const key = normalise(stop.name).trim();
+        if (!byName.has(key)) byName.set(key, []);
+        byName.get(key).push(stop);
+    });
+
+    byName.forEach((stops) => {
+        const groups = [];
+        stops.forEach((stop) => {
+            // Join the first group that has a pole close by (one "Main Street" per town)
+            const group = groups.find((g) => g.some((o) => distanceM(o.lat, o.lon, stop.lat, stop.lon) <= PLACE_RADIUS_M));
+            if (group) group.push(stop); else groups.push([stop]);
+        });
+        groups.forEach((members) => {
+            const hits = [];
+            const routeNames = new Set();
+            let region = '';
+            members.forEach((m) => {
+                for (let i = 0; i < m.hits.length; i += 2) {
+                    hits.push(m.hits[i], m.hits[i + 1]);
+                    const feature = allRoutes[m.hits[i]];
+                    routeNames.add(feature.properties.short_name);
+                    if (!region) region = feature.properties.region || '';
+                }
+            });
+            const place = {
+                id: members.length === 1 ? members[0].id : 'place:' + members[0].id,
+                name: members[0].name,
+                lat: members.reduce((sum, m) => sum + m.lat, 0) / members.length,
+                lon: members.reduce((sum, m) => sum + m.lon, 0) / members.length,
+                stops: members,
+                hits: hits,
+                routeCount: routeNames.size,
+                region: region === ALL_IRELAND ? '' : region,
+                // Stop numbers are searchable too, in any case
+                search: normalise(members[0].name) + ' ' + members.map((m) => m.id.toLowerCase()).join(' ')
+            };
+            placeList.push(place);
+            members.forEach((m) => placeOfStop.set(m.id, place));
+        });
+    });
+}
+
+// The place a single stop belongs to (or the stop itself if places aren't built yet)
+function placeFor(stop) {
+    return (stop && placeOfStop.get(String(stop.id))) || stop || null;
 }
 
 // Best matches first: name starts with the text, then a word starts with it, then anywhere
@@ -897,7 +960,7 @@ function searchStops(query, limit) {
     const tokens = text.split(/\s+/);
     const scored = [];
 
-    for (const stop of stopList) {
+    for (const stop of placeList) {
         if (!tokens.every((t) => stop.search.includes(t))) continue;
         let rank = 2;
         if (stop.search.startsWith(text)) rank = 0;
@@ -956,8 +1019,12 @@ function createStopPicker(inputId, listId, onChange) {
             li.setAttribute('aria-selected', 'false');
             li.textContent = stop.name;
             const small = document.createElement('small');
-            const routeCount = stop.hits.length / 2;
-            small.textContent = 'Stop ' + stop.id + ' · ' + routeCount + (routeCount === 1 ? ' route' : ' routes');
+            const routeCount = stop.routeCount || stop.hits.length / 2;
+            const where = stop.stops && stop.stops.length > 1
+                ? stop.stops.length + ' stops'
+                : 'Stop ' + (stop.stops ? stop.stops[0].id : stop.id);
+            small.textContent = [stop.region, where, routeCount + (routeCount === 1 ? ' route' : ' routes')]
+                .filter(Boolean).join(' · ');
             li.appendChild(small);
             li.addEventListener('click', () => choose(stop));
             list.appendChild(li);
@@ -1020,17 +1087,20 @@ let chosenBus = null;
 
 // Routes that visit From and then To (in that order), one per route name, shortest trip first
 function findBuses(from, to) {
-    const fromPos = new Map();   // route index -> where it visits From
+    const fromPos = new Map();   // route index -> every place on it where it visits From (any of its poles)
     for (let i = 0; i < from.hits.length; i += 2) {
-        if (!fromPos.has(from.hits[i])) fromPos.set(from.hits[i], from.hits[i + 1]);
+        if (!fromPos.has(from.hits[i])) fromPos.set(from.hits[i], []);
+        fromPos.get(from.hits[i]).push(from.hits[i + 1]);
     }
 
     const byName = new Map();
     for (let i = 0; i < to.hits.length; i += 2) {
         const routeIdx = to.hits[i];
         const toPosition = to.hits[i + 1];
-        const fromPosition = fromPos.get(routeIdx);
-        if (fromPosition === undefined || fromPosition >= toPosition) continue;
+        // The From pole visited last before To: the shortest ride
+        const before = (fromPos.get(routeIdx) || []).filter((p) => p < toPosition);
+        if (before.length === 0) continue;
+        const fromPosition = Math.max(...before);
 
         const feature = allRoutes[routeIdx];
         const between = toPosition - fromPosition;
@@ -1104,8 +1174,17 @@ function renderBusList() {
         const detail = document.createElement('small');
         detail.textContent = (p.agency_name || 'Unknown operator') + ' · ' +
             bus.between + (bus.between === 1 ? ' stop' : ' stops');
+        // Which pole to wait at, and which way the bus is going
+        const stops = p.stops || [];
+        const board = stops[bus.fromPos];
+        const last = stops[stops.length - 1];
+        const where = document.createElement('small');
+        where.className = 'bus-board';
+        where.textContent = (board ? 'Board at stop ' + board.id : '') +
+            (last ? (board ? ' · ' : '') + 'towards ' + last.name : '');
         info.appendChild(name);
         info.appendChild(detail);
+        if (where.textContent) info.appendChild(where);
 
         button.appendChild(badge);
         button.appendChild(info);
@@ -1399,8 +1478,11 @@ function drawTicketMap() {
         ticketBounds = ride.getBounds();
     }
 
-    if (from) { endpointMarker(from, COLORS.from, 'From').addTo(ticketLayer); points.push([from.lat, from.lon]); }
-    if (to) { endpointMarker(to, COLORS.to, 'To').addTo(ticketLayer); points.push([to.lat, to.lon]); }
+    const rideStops = chosenBus ? chosenBus.feature.properties.stops : null;
+    const fromStop = rideStops ? rideStops[chosenBus.fromPos] : from;
+    const toStop = rideStops ? rideStops[chosenBus.toPos] : to;
+    if (fromStop) { endpointMarker(fromStop, COLORS.from, 'From').addTo(ticketLayer); points.push([fromStop.lat, fromStop.lon]); }
+    if (toStop) { endpointMarker(toStop, COLORS.to, 'To').addTo(ticketLayer); points.push([toStop.lat, toStop.lon]); }
 
     if (!ticketBounds && points.length > 0) ticketBounds = L.latLngBounds(points);
     if (ticketBounds) fitTo(ticketBounds, { maxZoom: 15 });
@@ -1418,15 +1500,18 @@ $('ticket-continue').addEventListener('click', () => {
     if (!chosenBus || !from || !to) return;
 
     const p = chosenBus.feature.properties;
+    // The exact poles of this bus, not the whole place
+    const board = (p.stops || [])[chosenBus.fromPos] || from;
+    const alight = (p.stops || [])[chosenBus.toPos] || to;
     const draft = {
         routeId: String(p.route_id),
         shortName: String(p.short_name || ''),
         longName: String(p.long_name || ''),
         agency: String(p.agency_name || ''),
-        fromId: from.id,
-        fromName: from.name,
-        toId: to.id,
-        toName: to.name,
+        fromId: String(board.id),
+        fromName: String(board.name),
+        toId: String(alight.id),
+        toName: String(alight.name),
         stopsBetween: chosenBus.between
     };
 
@@ -1446,8 +1531,8 @@ function startInRequestedMode() {
     try { draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) { draft = null; }
     if (!draft || typeof draft !== 'object') { refreshTicketSearch(); return; }
 
-    const from = stopIndex.get(String(draft.fromId));
-    const to = stopIndex.get(String(draft.toId));
+    const from = placeFor(stopIndex.get(String(draft.fromId)));
+    const to = placeFor(stopIndex.get(String(draft.toId)));
     if (!from || !to) { refreshTicketSearch(); return; }
 
     fromPicker.silent(from);
@@ -1703,7 +1788,7 @@ $('use-location-btn').addEventListener('click', () => {
         $('ticket-hint').textContent = 'No bus stops found near you.';
         return;
     }
-    fromPicker.set(nearest.stop);
+    fromPicker.set(placeFor(nearest.stop));
     if (!toPicker.get()) {
         $('ticket-hint').textContent = 'Starting from ' + nearest.stop.name + ', about ' +
             formatDistance(nearest.d) + ' from you. Now choose where you are going.';
