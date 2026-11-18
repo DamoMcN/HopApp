@@ -1118,3 +1118,11 @@ dialog.loc-dialog::backdrop {
         animation: none;
     }
 }
+
+/* Which pole to wait at, under each bus in Buy a ticket */
+.bus-info .bus-board {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--card-ink);
+    font-weight: 600;
+}
