@@ -107,12 +107,14 @@ CREATE TABLE IF NOT EXISTS `tickets` (
   `user_id` int NOT NULL,
   `qr_token` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `route` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `travel_at` datetime DEFAULT NULL COMMENT 'Irish local time the ticket is for. Valid for 90 minutes from then.',
   `status` enum('active','used','expired') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `purchased_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `used_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`ticket_id`),
   UNIQUE KEY `qr_token` (`qr_token`),
-  KEY `user_id` (`user_id`)
+  KEY `user_id` (`user_id`),
+  KEY `user_travel` (`user_id`,`travel_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
