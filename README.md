@@ -100,6 +100,7 @@ http://localhost/HopApp/frontend/auth/index.html
 | 3 | `database/card_expiry_migration.sql` | **Logging in bounces you straight back to the login page** |
 | 4 | `database/saved_cards_migration.sql` | Saving your own card fails |
 | 5 | `database/recurring_topups_migration.sql` | Recurring top ups fail |
+| 6 | `database/ticket_travel_time_migration.sql` | Buying a ticket fails (no date and time saved) |
 
 </details>
 
@@ -299,7 +300,10 @@ flowchart LR
 | ✅ | Optional My location with nearby stops | `frontend/map/` |
 | ✅ | Tap a stop: buses that stop there, next arrivals and delays (needs the hosted live server) | `frontend/map/`, `backend/live/` |
 | ✅ | Search routes by number or name, including city buses (Galway 401 to 412, Cork, Limerick, Waterford) | `frontend/map/` |
-| 🚧 | Actually buying a ticket | Coming soon |
+| ✅ | Choose the date and departure time of a ticket (every 15 min, 06:00 to 23:00, up to 30 days ahead) | `frontend/tickets/`, `ticket.php` |
+| ✅ | Ticket QR code: shown after paying and in **My tickets**, valid for 90 minutes; used and expired tickets have none | `frontend/tickets/`, `ticket.php` |
+| ✅ | Stop search groups stops with the same name (both sides of the road, all of Eyre Square) and says which pole to board at | `frontend/map/` |
+| ✅ | Bottom bar: Card, Top Up, Map, Tickets | `frontend/shared/js/navbar.js` |
 | 🚧 | Password reset | "Coming soon" pop-up for now |
 
 > **Payments are in demo mode.** `PAYMENTS_MODE` in `backend/auth/topup.php` is `'mock'`. No real payment provider is contacted and no real money moves. "Add demo card" stores only a brand and the last 4 digits, never a full card number. `charge_payment()` is the single place a real provider (for example Stripe in test mode) would be added later.
@@ -430,7 +434,7 @@ HopApp/
 - [x] Journey planner and Tickets hand-off
 - [x] Live buses and optional My location
 - [x] Stop card with next buses and delays
-- [ ] Buy the ticket you planned (server must check `card_status = 'active'`)
+- [x] Buy the ticket you planned, with a date, time and QR code
 - [ ] Password reset
 - [ ] Replacement cards in the app (the FAQ points to Contact Support for now)
 - [ ] Regenerate the transport API key and keep it only in Render's environment variables
