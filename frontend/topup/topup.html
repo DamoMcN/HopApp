@@ -23,11 +23,13 @@
     </header>
 
     <main class="topup">
-        <p id="mode-note" class="mode-note" hidden></p>
-
-        <p class="balance-line">
-            Current balance <strong id="balance-display">&mdash;</strong>
-        </p>
+        <section class="panel balance-panel" aria-label="Current balance">
+            <p class="balance-line">
+                <span>Current balance</span>
+                <strong id="balance-display">&mdash;</strong>
+            </p>
+            <p id="mode-note" class="mode-note" hidden></p>
+        </section>
 
         <section class="panel" aria-labelledby="amount-heading">
             <h2 id="amount-heading">Amount</h2>

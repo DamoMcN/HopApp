@@ -9,7 +9,7 @@
 // Every possible tab is listed once in TABS. What the person actually sees is a
 // "config": an ordered list of tab ids plus the page to open at start-up/login.
 //
-//     { tabs: ['card', 'map', 'tickets'], startPage: 'card' }
+//     { tabs: ['card', 'topup', 'map', 'tickets'], startPage: 'card' }
 //
 // For now everyone gets DEFAULT_CONFIG. Later a settings page can save a config
 // per user (the `settings` table already has `navbar_layout` (JSON) and
@@ -53,7 +53,7 @@
     };
 
     const DEFAULT_CONFIG = {
-        tabs: ['card', 'map', 'tickets'],
+        tabs: ['card', 'topup', 'map', 'tickets'],
         startPage: 'card'
     };
 
