@@ -824,12 +824,13 @@ function setMode(next, options) {
 
     // Each mode keeps its own layers; only the active mode's are on the map
     if (mode === 'tickets') {
-        [linesLayer, stopsLayer, busesLayer, nearbyLayer].forEach((l) => map.removeLayer(l));
+        [linesLayer, stopsLayer, busesLayer, nearbyLayer, stopSearchLayer].forEach((l) => map.removeLayer(l));
         ticketLayer.addTo(map);
     } else {
         map.removeLayer(ticketLayer);
         [linesLayer, stopsLayer, busesLayer].forEach((l) => l.addTo(map));
         if (nearbyLayer.getLayers().length) nearbyLayer.addTo(map);
+        if (stopSearchLayer.getLayers().length) stopSearchLayer.addTo(map);
         if (activeRoute) fetchLiveBuses();
     }
 
@@ -984,6 +985,7 @@ function createStopPicker(inputId, listId, onChange) {
     let active = -1;
 
     function close() {
+        if (!list.hidden) sheet.classList.remove('is-searching');
         list.hidden = true;
         input.setAttribute('aria-expanded', 'false');
         input.removeAttribute('aria-activedescendant');
@@ -1009,7 +1011,7 @@ function createStopPicker(inputId, listId, onChange) {
         if (results.length === 0) {
             const li = document.createElement('li');
             li.className = 'picker-empty';
-            li.textContent = 'No stops found';
+            li.textContent = 'No bus stops match "' + input.value.trim() + '". Check the spelling or try part of the name.';
             list.appendChild(li);
         }
         results.forEach((stop, i) => {
@@ -1030,6 +1032,9 @@ function createStopPicker(inputId, listId, onChange) {
             list.appendChild(li);
         });
         list.hidden = false;
+        // Give the list room: the sheet grows while searching and the box scrolls to the top
+        sheet.classList.add('is-searching');
+        input.closest('.field').scrollIntoView({ block: 'start' });
         input.setAttribute('aria-expanded', 'true');
         active = -1;
     }
@@ -1428,7 +1433,25 @@ function stopCard(stop, extraLines, titlePrefix) {
 }
 
 function bindStopCard(marker, stop, extraLines, titlePrefix) {
-    marker.bindPopup(() => stopCard(stop, extraLines, titlePrefix), { minWidth: 230, maxWidth: 290 });
+    marker.bindPopup(() => stopCard(stop, extraLines, titlePrefix), {
+        minWidth: 230,
+        maxWidth: 290,
+        // Keep the card clear of the floating top bar when the map pans to show it
+        autoPanPaddingTopLeft: L.point(12, topBarClearance()),
+        autoPanPaddingBottomRight: L.point(12, 12)
+    });
+}
+
+// A stop card grows after it opens (bus alerts, live times), so pan again once it has
+map.on('popupopen', (event) => {
+    [150, 900].forEach((ms) => setTimeout(() => {
+        if (event.popup.isOpen()) event.popup.update();   // update() re-runs the auto-pan
+    }, ms));
+});
+
+function topBarClearance() {
+    const bar = document.querySelector('.map-topbar');
+    return bar ? Math.round(bar.getBoundingClientRect().bottom) + 12 : 90;
 }
 
 map.on('popupclose', () => clearInterval(stopTimesTimer));
@@ -1541,6 +1564,98 @@ function startInRequestedMode() {
     const match = buses.find((b) => String(b.feature.properties.route_id) === String(draft.routeId));
     if (match) chooseBus(match);
 }
+
+// =========================================
+//  Search for a bus stop (Route view)
+//  Finds a stop by name or number, shows where it is and which buses stop there.
+//  A place like Eyre Square has several stops: each one gets a dot, and tapping a dot
+//  opens its stop card with the buses and next arrivals for that exact stop.
+// =========================================
+
+const stopSearchLayer = L.layerGroup();
+let foundPlace = null;
+let foundMain = null;       // the dot whose card opens first (the busiest stop)
+
+const stopSearch = createStopPicker('stop-search-input', 'stop-search-results', showFoundStop);
+
+// Every route that stops at any stop of the place, in number order
+function routesAtPlace(place) {
+    const seen = new Map();
+    (place.stops || [place]).forEach((stop) => {
+        routesAtStop(stop.id).forEach((f) => {
+            if (!seen.has(f.properties.short_name)) seen.set(f.properties.short_name, f);
+        });
+    });
+    return Array.from(seen.values()).sort((a, b) =>
+        String(a.properties.short_name).localeCompare(String(b.properties.short_name), undefined, { numeric: true }));
+}
+
+function showFoundStop(place) {
+    stopSearchLayer.clearLayers();
+    foundPlace = place;
+    foundMain = null;
+    $('stop-found').hidden = !place;
+    if (!place) {
+        map.removeLayer(stopSearchLayer);
+        return;
+    }
+
+    const poles = place.stops || [place];
+    let busiest = -1;
+    poles.forEach((stop) => {
+        const marker = L.circleMarker([stop.lat, stop.lon], {
+            radius: 10, fillColor: COLORS.from, fillOpacity: 1, color: '#ffffff', weight: 3, opacity: 1
+        }).addTo(stopSearchLayer);
+        bindStopCard(marker, stop, poles.length > 1 ? ['One of ' + poles.length + ' stops called ' + place.name] : []);
+        const count = routesAtStop(stop.id).length;
+        if (count > busiest) { busiest = count; foundMain = marker; }
+    });
+    stopSearchLayer.addTo(map);
+
+    // The summary under the search box
+    $('stop-found-name').textContent = place.name;
+    const routes = routesAtPlace(place);
+    $('stop-found-meta').textContent = [
+        place.region,
+        poles.length > 1 ? poles.length + ' stops (one dot each on the map)' : 'Stop ' + poles[0].id,
+        routes.length + (routes.length === 1 ? ' bus stops here' : ' buses stop here')
+    ].filter(Boolean).join(' · ');
+    const chips = $('stop-found-routes');
+    chips.innerHTML = '';
+    routes.slice(0, 16).forEach((f) => {
+        const chip = routeBadge(f);
+        chip.title = f.properties.long_name || '';
+        chips.appendChild(chip);
+    });
+    if (routes.length > 16) {
+        const more = document.createElement('span');
+        more.className = 'stop-chips-more';
+        more.textContent = '+' + (routes.length - 16) + ' more';
+        chips.appendChild(more);
+    }
+
+    showFoundOnMap();
+}
+
+// Tuck the sheet away, frame the stop and open its card
+function showFoundOnMap() {
+    if (!foundPlace) return;
+    sheet.classList.add('is-collapsed');
+    sheetToggle.setAttribute('aria-expanded', 'false');
+    const poles = foundPlace.stops || [foundPlace];
+    const bounds = L.latLngBounds(poles.map((s) => [s.lat, s.lon]));
+    setTimeout(() => {
+        // No animation, so the card opens on a map that has stopped moving and can pan clear of the top bar
+        fitTo(bounds, { maxZoom: 17, animate: false });
+        if (foundMain) foundMain.openPopup();
+    }, 320);   // after the sheet has slid down
+}
+
+$('stop-found-show').addEventListener('click', showFoundOnMap);
+$('stop-found-clear').addEventListener('click', () => {
+    stopSearch.set(null);
+    $('stop-search-input').focus();
+});
 
 // Starting hint
 $('ticket-hint').textContent = 'Search for where you are starting and where you are going.';

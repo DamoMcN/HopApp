@@ -1126,3 +1126,86 @@ dialog.loc-dialog::backdrop {
     color: var(--card-ink);
     font-weight: 600;
 }
+
+/* ---------- Search for a bus stop (Route view) ---------- */
+
+.search-box {
+    position: relative;
+}
+
+.search-box svg {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.field .search-box input[type="text"] {
+    padding-left: 2.5rem;
+}
+
+.stop-search .picker-results li.picker-empty {
+    cursor: default;
+    color: var(--text-muted);
+}
+
+.stop-found {
+    margin-bottom: 1rem;
+    padding: 0.85rem 0.9rem;
+    background: var(--surface-color);
+    border-radius: 14px;
+}
+
+.stop-found-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.stop-found-head h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--card-ink);
+    overflow-wrap: anywhere;
+}
+
+.stop-found-clear {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    font-size: 1.3rem;
+    line-height: 1;
+    color: var(--card-ink);
+    background: #ffffff;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.stop-found-meta {
+    margin: 0.2rem 0 0.6rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.stop-found-show {
+    width: 100%;
+    margin-top: 0.75rem;
+    padding: 0.6rem;
+    font: inherit;
+    font-weight: 700;
+    color: var(--card-ink);
+    background: #ffffff;
+    border: 1.5px solid #ddd0ea;
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+.stop-found-clear:focus-visible,
+.stop-found-show:focus-visible {
+    outline: 3px solid var(--card-ink);
+    outline-offset: 2px;
+}
