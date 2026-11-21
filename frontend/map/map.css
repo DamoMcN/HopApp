@@ -1118,3 +1118,440 @@ dialog.loc-dialog::backdrop {
         animation: none;
     }
 }
+
+/* =========================================================
+   Search bar and journeys
+   ========================================================= */
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.search-field {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.search-field input {
+    width: 100%;
+    padding: 0.7rem 2.4rem 0.7rem 2.3rem;
+    font-size: 1rem;
+    color: var(--text-main);
+    background: var(--surface-color);
+    border: 1.5px solid transparent;
+    border-radius: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-field input:focus {
+    outline: none;
+    border-color: var(--route);
+    box-shadow: 0 0 0 3px rgba(90, 61, 145, 0.18);
+}
+
+.search-icon {
+    position: absolute;
+    left: 0.8rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.search-clear {
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.search-clear[hidden] {
+    display: none;
+}
+
+.search-results {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    max-height: min(58vh, 420px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: #ffffff;
+    border: 1.5px solid #e3d8f0;
+    border-radius: 14px;
+    box-shadow: 0 8px 22px rgba(61, 42, 92, 0.2);
+}
+
+.search-results[hidden] {
+    display: none;
+}
+
+/* Result rows (shared by the search bar and the starting-point box) */
+.result {
+    position: relative;
+    padding: 0.55rem 0.7rem 0.55rem 2.3rem;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-main);
+    line-height: 1.3;
+}
+
+.result::before {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    top: 0.85rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 50%;
+    background: var(--route-public);       /* stop */
+}
+
+.result-place::before {
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: var(--stop-to);
+}
+
+.result-route::before {
+    border-radius: 3px;
+    background: var(--route);
+}
+
+.result-title {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.result small {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
+.result[aria-selected="true"],
+.result:hover {
+    background: var(--surface-color);
+}
+
+.search-results .picker-empty {
+    padding: 0.6rem 0.8rem;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+}
+
+/* The sheet is taller when it lists journeys */
+.plan-sheet[data-view="journey"] .sheet-scroll,
+.plan-sheet[data-view="route"] .sheet-scroll {
+    max-height: min(46vh, 400px);
+}
+
+.idle-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.nearby + .idle-hint {
+    margin-top: 0.75rem;
+}
+
+/* From / To */
+.journey-points {
+    margin-top: 0.75rem;
+    display: grid;
+    gap: 0.35rem;
+}
+
+.journey-point {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.5rem 0.7rem;
+    background: var(--surface-color);
+    border-radius: 12px;
+}
+
+.point-dot {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px rgba(61, 42, 92, 0.25);
+}
+
+.point-dot.dot-from { background: var(--stop-from); }
+.point-dot.dot-to   { background: var(--stop-to); }
+
+.point-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.point-text small {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.point-text strong {
+    display: block;
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.icon-btn {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.icon-btn:hover,
+.search-clear:hover {
+    background: rgba(90, 61, 145, 0.1);
+}
+
+.link-btn {
+    flex: none;
+    padding: 0.3rem 0.5rem;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--route);
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.link-btn[hidden],
+.origin-prompt[hidden],
+#view-idle[hidden],
+#view-journey[hidden],
+#view-route[hidden],
+.nearby[hidden] {
+    display: none;
+}
+
+/* "Where are you starting from?" */
+.origin-prompt {
+    margin-top: 0.75rem;
+}
+
+.prompt-title {
+    margin: 0 0 0.4rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.origin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+}
+
+.origin-actions button[hidden] {
+    display: none;
+}
+
+.pill-btn {
+    padding: 0.5rem 0.9rem;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--route);
+    background: #ffffff;
+    border: 1.5px solid var(--route);
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.pill-btn:focus-visible,
+.option-card:focus-visible,
+.link-btn:focus-visible,
+.icon-btn:focus-visible,
+.search-clear:focus-visible {
+    outline: 3px solid var(--card-ink);
+    outline-offset: 2px;
+}
+
+/* One way to get there */
+.option-list {
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.option-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    width: 100%;
+    padding: 0.7rem;
+    text-align: left;
+    font: inherit;
+    color: var(--text-main);
+    background: #ffffff;
+    border: 1.5px solid #e3d8f0;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+
+.option-card[aria-pressed="true"] {
+    border-color: var(--route);
+    background: var(--surface-color);
+}
+
+.option-card.is-late {
+    border-left: 4px solid var(--stop-to);
+}
+
+.option-card .bus-badge {
+    margin-top: 0.1rem;
+}
+
+.option-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.option-info strong {
+    display: block;
+    font-size: 0.92rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.option-info small {
+    display: block;
+    margin-top: 0.1rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1.3;
+}
+
+.option-info .option-when {
+    color: var(--text-main);
+    font-weight: 700;
+    font-size: 0.82rem;
+}
+
+.option-advice {
+    color: #8a2a1f !important;
+    font-weight: 600;
+}
+
+.delay-chip,
+.best-chip {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 999px;
+}
+
+.delay-chip.is-ontime { color: #14532d; background: #dcfce7; }
+.delay-chip.is-early  { color: #14532d; background: #dcfce7; }
+.delay-chip.is-late   { color: #7f1d1d; background: #fee2e2; }
+
+.best-chip {
+    display: block;
+    margin: 0.25rem 0 0;
+    color: var(--card-ink);
+    background: var(--primary-color);
+}
+
+.option-total {
+    flex: none;
+    text-align: right;
+}
+
+.option-total strong {
+    display: block;
+    font-size: 1.05rem;
+}
+
+.option-total small {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.74rem;
+}
+
+/* A route picked from the search */
+.route-head {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-top: 0.75rem;
+}
+
+.route-head .point-text strong {
+    white-space: normal;
+}
+
+.route-head .point-text small {
+    text-transform: none;
+    font-weight: 400;
+    letter-spacing: 0;
+    font-size: 0.8rem;
+}
+
+/* Start and destination pins on the map */
+.pin-marker span {
+    display: block;
+    width: 22px;
+    height: 22px;
+    margin: 2px 2px 0;
+    border: 3px solid #ffffff;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.pin-marker.is-to span   { background: var(--stop-to); }
+.pin-marker.is-from span { background: var(--stop-from); }
+
+body.is-pinning .leaflet-container {
+    cursor: crosshair;
+}
