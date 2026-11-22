@@ -38,7 +38,7 @@ test('The menu lists every page, with Log Out at the bottom', async ({ page }) =
   await menuButton(page).click();
   // last span = the label (Help & Support also has a "?" icon span)
   await expect(sideMenu(page).locator('.side-menu-list a > span:last-child')).toHaveText([
-    'My Card', 'Map', 'Tickets', 'Top Up', 'Recurring Top Up', 'Settings', 'Help & Support'
+    'My Card', 'Map', 'Accessible Stops & Routes', 'Tickets', 'Top Up', 'Recurring Top Up', 'Settings', 'Help & Support'
   ]);
   await expect(sideMenu(page).locator('.side-menu-footer')).toHaveText('Log Out');
 });

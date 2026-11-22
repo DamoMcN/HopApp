@@ -5,6 +5,12 @@
 //
 // One route "variant" is made for every route and direction, using its most common stop pattern
 // and shape. Only buses are kept (Luas and Irish Rail are skipped).
+//
+// Wheelchair access is read from the standard GTFS columns when the feed has them:
+//   stops.txt  wheelchair_boarding    (a stop with 0 inside a station takes the station's value)
+//   trips.txt  wheelchair_accessible
+// Both use 0 = not known, 1 = accessible, 2 = not accessible. Hand-checked values can be added
+// on top in data/accessibility.json (see the README), which the map reads when it loads.
 
 const fs = require('fs');
 const path = require('path');
@@ -38,6 +44,9 @@ async function eachRow(file, onRow, raw) {
     }
 }
 
+// GTFS wheelchair columns: 1 = accessible, 2 = not accessible, anything else (or no column) = not known
+const access = (value) => (value === '1' ? 1 : value === '2' ? 2 : 0);
+
 const REGION_BY_AGENCY = { '1': 'Dublin', '3': 'Dublin', '03C': 'Dublin', 'WFRD': 'Waterford' };
 
 async function main() {
@@ -60,9 +69,10 @@ async function main() {
         const route = p[c.route_id];
         if (!routes.has(route)) return;
         const key = route + '|' + p[c.direction_id] + '|' + p[c.shape_id];
-        const hit = patterns.get(key);
+        let hit = patterns.get(key);
         if (hit) hit.count++;
-        else patterns.set(key, { route: route, dir: p[c.direction_id], shape: p[c.shape_id], count: 1, trip: p[c.trip_id] });
+        else patterns.set(key, hit = { route: route, dir: p[c.direction_id], shape: p[c.shape_id], count: 1, trip: p[c.trip_id], access: [0, 0, 0] });
+        hit.access[access(p[c.wheelchair_accessible])]++;   // trips counted as not known, yes, no
     });
     const best = new Map();       // route|direction -> pattern
     patterns.forEach((pt) => {
@@ -96,8 +106,13 @@ async function main() {
 
     const stopInfo = new Map();
     await eachRow('stops.txt', (p, c) => stopInfo.set(p[c.stop_id], {
-        name: p[c.stop_name], lat: Number(p[c.stop_lat]), lon: Number(p[c.stop_lon])
+        name: p[c.stop_name], lat: Number(p[c.stop_lat]), lon: Number(p[c.stop_lon]),
+        wheelchair: access(p[c.wheelchair_boarding]), parent: p[c.parent_station] || ''
     }));
+    stopInfo.forEach((info) => {
+        const station = info.parent && stopInfo.get(info.parent);
+        if (info.wheelchair === 0 && station) info.wheelchair = station.wheelchair;
+    });
 
     // 4. Build features
     const features = [];
@@ -109,13 +124,16 @@ async function main() {
             .sort((a, b) => a[0] - b[0])
             .map((s, i) => {
                 const info = stopInfo.get(s[1]);
-                return info ? { id: s[1], name: info.name, lat: info.lat, lon: info.lon, seq: i + 1 } : null;
+                return info ? { id: s[1], name: info.name, lat: info.lat, lon: info.lon, seq: i + 1, wheelchair: info.wheelchair } : null;
             })
             .filter(Boolean);
         if (stops.length < 2) return;
 
         let coordinates = (shapePoints.get(pt.shape) || []).sort((a, b) => a[0] - b[0]).map((q) => [q[1], q[2]]);
         if (coordinates.length < 2) coordinates = stops.map((s) => [s.lon, s.lat]);   // no shape: join the stops
+
+        // Accessible (or not) only when every trip of this variant says so
+        const wheelchair = pt.access[1] === pt.count ? 1 : pt.access[2] === pt.count ? 2 : 0;
 
         features.push({
             type: 'Feature',
@@ -126,6 +144,7 @@ async function main() {
                 agency_name: agencyName,
                 region: REGION_BY_AGENCY[route.agency] || 'Other / National',
                 display_name: '[' + agencyName + '] ' + route.short + ' - ' + route.long,
+                wheelchair: wheelchair,
                 stops: stops
             },
             geometry: { type: 'LineString', coordinates: coordinates }
