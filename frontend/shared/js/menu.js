@@ -10,10 +10,11 @@
 const MENU_ITEMS = [
     { label: 'My Card',  href: '../card/card.html' },
     { label: 'Map',      href: '../map/map.html' },
+    { label: 'Accessible Stops & Routes', href: '../map/map.html?accessible=1' },
     { label: 'Tickets',  href: '../tickets/tickets.html' },
     { label: 'Top Up',   href: '../topup/topup.html' },
     { label: 'Recurring Top Up', href: '../recurring/recurring.html' },
-    // { label: 'Settings', href: '../settings/settings.html' },
+    { label: 'Settings', href: '../setting/setting.html' },
 ];
 
 const SUPPORT_ITEM = { label: 'Help & Support', href: '../support/support.html', icon: '?' };

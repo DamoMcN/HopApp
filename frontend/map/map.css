@@ -10,6 +10,7 @@
     --stop-to: var(--negative);
     --bus: #f08a24;              /* live buses */
     --you: #2563eb;              /* your own location */
+    --stop-accessible: #5a3d91;  /* wheelchair accessible stops: Hop purple, because it is Hop's own info */
     --map-water: #d9c8f0;
 
     --sheet-radius: 24px;
@@ -231,7 +232,8 @@ body.map-page {
 .field[hidden],
 #stop-selectors[hidden],
 .chips[hidden],
-.live-status[hidden] {
+.live-status[hidden],
+.access-status[hidden] {
     display: none;
 }
 
@@ -323,6 +325,44 @@ body.map-page {
 .chip-public     { --chip-color: var(--route-public); }
 .chip-citylink   { --chip-color: var(--route-citylink); }
 
+/* "Only show wheelchair accessible stops": a plain checkbox above From and To */
+.check-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 44px;              /* big enough to tap */
+    margin-top: 0.75rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--card-ink);
+    cursor: pointer;
+}
+
+.check-row input {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    accent-color: var(--stop-accessible);
+    cursor: pointer;
+}
+
+.check-row input:focus-visible {
+    outline: 3px solid var(--card-ink);
+    outline-offset: 2px;
+}
+
+.access-status {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--card-ink);
+    background: #efe8f8;
+    border-radius: 10px;
+}
+
 .chip input:checked + span {
     color: var(--card-ink);
     background: var(--surface-color);
@@ -387,6 +427,7 @@ body.map-page {
 .dot-to   { background: var(--stop-to); }
 .dot-bus  { background: var(--bus); }
 .dot-you  { background: var(--you); }
+.dot-accessible { background: var(--stop-accessible); }
 
 /* ---------- Popups ---------- */
 .leaflet-popup-content-wrapper {

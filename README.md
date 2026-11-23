@@ -123,6 +123,16 @@ npx playwright install     # first time only
 npx playwright test
 ```
 
+These tests fake the PHP replies, so they need no WAMP and run on GitHub Actions.
+
+**Database tests** call the real PHP and MySQL, so WAMP must be running:
+
+```bash
+npm run test:db
+```
+
+They build a separate `hop_app_test` database from `database/hop_app_db.sql`, so your `hop_app_db` data is never touched. While they run, a git-ignored `backend/db_config.local.php` points the PHP at `hop_app_test`; it is deleted when they finish. They are in `tests-db/` and cover sign up, log in and out, top up and card status. If this folder is not at `C:\wamp64\www\...`, set `HOP_APP_URL` (for example `http://localhost/HopApp/HopApp-tests/`); see `tests-db/db.js` for the other settings.
+
 </details>
 
 ---
@@ -289,6 +299,7 @@ flowchart LR
 | ✅ | Optional My location with nearby stops | `frontend/map/` |
 | ✅ | Tap a stop: buses that stop there, next arrivals and delays (needs the hosted live server) | `frontend/map/`, `backend/live/` |
 | ✅ | Search routes by number or name, including city buses (Galway 401 to 412, Cork, Limerick, Waterford) | `frontend/map/` |
+| ✅ | "Only show wheelchair accessible stops" checkbox for stop search and journeys, accessible stops in purple, ♿ on stop cards (stop data from the NTA PTIMS survey) | `frontend/map/` |
 | 🚧 | Actually buying a ticket | Coming soon |
 | 🚧 | Password reset | "Coming soon" pop-up for now |
 
@@ -306,6 +317,40 @@ flowchart LR
 The split route files in `frontend/map/data/` (`index.json` and `geo-*.json`) are committed, so routes work straight after pulling. Route lines load per region as you need them, and some data is fetched quietly in the background while you log in.
 
 Only the huge source file `routes.geojson` stays out of git. To rebuild the split files, put it in `frontend/map/data/` and run `node build-data.js` from `frontend/map/`.
+
+</details>
+
+<details>
+<summary><b>Accessible stops and routes</b></summary>
+
+<br>
+
+The journey panel has an **Only show wheelchair accessible stops** checkbox, under the **My location** switch. When it's ticked:
+
+- the search bar and "Where are you starting from?" only suggest accessible stops, and **Stops near you** only lists accessible ones
+- journeys only get on and get off at accessible stops. If no direct bus does that, the panel says so
+- a chosen start or destination stop that isn't accessible is cleared, with a short message
+- a line under the box says how many stops are marked accessible (for example "Only stops marked wheelchair accessible are shown (2 of 9,500).")
+
+Unticking brings every stop back. Route search is never filtered.
+
+The menu item **Accessible Stops & Routes** opens `map.html?accessible=1`, which opens the panel with the checkbox ticked. On the map, accessible stops are purple (on a picked route and in **Stops near you**). Stop cards and route pop-ups say "♿ Wheelchair accessible" or "Not wheelchair accessible". If nothing is known about a stop or route, they say nothing.
+
+Access values come from three places. When more than one has a value, the later one in this list wins.
+
+1. **The timetable data (GTFS).** `convert.js` reads `wheelchair_boarding` from `stops.txt` and `wheelchair_accessible` from `trips.txt`. A stop with 0 inside a station takes the station's value. A route counts as accessible only when all its trips are. `build-data.js` saves the value as the last item of each stop and route in `index.json` (0 = not known, 1 = yes, 2 = no). Rebuild with `node convert.js "path/to/GTFS folder"` and then `node build-data.js`. In the November 2026 NTA feed every stop is 0 and trips have no column, so this gives nothing yet.
+2. **The NTA stop survey (PTIMS).** This is where most of the stop values come from. Download **PTIMS Map** (`ptims.zip`) from [Transport for Ireland's open data page](https://www.transportforireland.ie/transitData/PT_Data.html), unzip it outside the repo, and from `frontend/map/` run `node import-ptims.js "path/to/ptims folder"`. It fills the `ptims` part of `accessibility.json` from each stop's `WheelchairAccessibility`. The PTIMS `AtcoCode` is our stop id. Stops never surveyed are left as not known, because PTIMS marks them all False. The October 2026 file covers about 12,700 of the map's 13,532 stops. PTIMS has nothing about routes. Run it again when a new file comes out; it keeps your hand-checked values. The data is CC BY 4.0, so the map credits the NTA in its corner.
+3. **Checked by hand: the `stops` and `routes` parts of `frontend/map/data/accessibility.json`.** No rebuild is needed. Just edit the file and reload the map. Don't edit the `ptims` part by hand: the next import replaces it.
+
+```json
+{
+    "stops":  { "8460B525641": true, "8460B5232101": false },
+    "routes": { "2_409_c_a": true },
+    "ptims":  { "accessible": ["…"], "not_accessible": ["…"] }
+}
+```
+
+Keys are the stop id and route id from `index.json`. A stop card shows its stop id ("Stop 8460B525641"). To find a route's id, search `index.json` for the route number. `true` (or 1) means accessible and `false` (or 2) means not accessible. Leave out anything you haven't checked. If the file is missing or broken, the map ignores it.
 
 </details>
 
@@ -372,7 +417,8 @@ HopApp/
 │   └── db_connect.php
 ├── database/       Schema and migrations
 ├── docs/screens/   Screen previews used in this README
-└── tests/          Playwright tests
+├── tests/          Playwright tests (fake backend)
+└── tests-db/       Database tests (real PHP and MySQL on WAMP)
 ```
 
 </details>

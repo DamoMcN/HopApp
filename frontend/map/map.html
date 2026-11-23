@@ -91,6 +91,13 @@
                       </label>
                   </div>
 
+                  <!-- Limits stop search and journeys to wheelchair accessible stops (map.js reads data/accessibility.json) -->
+                  <label class="check-row" for="filter-accessible">
+                      <input type="checkbox" id="filter-accessible" aria-describedby="access-status">
+                      <span>Only show wheelchair accessible stops</span>
+                  </label>
+                  <p id="access-status" class="access-status" role="status" aria-live="polite" hidden></p>
+
                   <!-- Nothing searched yet -->
                   <div id="view-idle">
                     <details class="nearby" id="nearby" hidden>
@@ -157,6 +164,7 @@
 
                   <ul class="legend" aria-label="Map key">
                       <li><span class="dot dot-stop"></span>Stop</li>
+                      <li><span class="dot dot-accessible"></span>Accessible stop</li>
                       <li><span class="dot dot-from"></span>From</li>
                       <li><span class="dot dot-to"></span>To</li>
                       <li><span class="dot dot-bus"></span>Live bus</li>
@@ -186,9 +194,10 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="../shared/js/menu.js"></script>
+    <script src="../shared/js/menu.js?v=20261122-accessible-nav"></script>
     <script src="../shared/js/navbar.js"></script>
     <script src="journey.js"></script>
     <script src="map.js"></script>
+    <script src="bus-alerts.js"></script>
 </body>
 </html>
