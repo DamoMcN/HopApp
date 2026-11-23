@@ -300,10 +300,8 @@ flowchart LR
 | ✅ | Optional My location with nearby stops | `frontend/map/` |
 | ✅ | Tap a stop: buses that stop there, next arrivals and delays (needs the hosted live server) | `frontend/map/`, `backend/live/` |
 | ✅ | Search routes by number or name, including city buses (Galway 401 to 412, Cork, Limerick, Waterford) | `frontend/map/` |
-| ✅ | Choose the date and departure time of a ticket (every 15 min, 06:00 to 23:00, up to 30 days ahead) | `frontend/tickets/`, `ticket.php` |
-| ✅ | Ticket QR code: shown after paying and in **My tickets**, valid for 90 minutes; used and expired tickets have none | `frontend/tickets/`, `ticket.php` |
-| ✅ | Stop search groups stops with the same name (both sides of the road, all of Eyre Square) and says which pole to board at | `frontend/map/` |
-| ✅ | Bottom bar: Card, Top Up, Map, Tickets | `frontend/shared/js/navbar.js` |
+| ✅ | "Only show wheelchair accessible stops" checkbox for From and To in Route view, accessible stops in purple, ♿ on stop cards (stop data from the NTA PTIMS survey) | `frontend/map/` |
+| 🚧 | Actually buying a ticket | Coming soon |
 | 🚧 | Password reset | "Coming soon" pop-up for now |
 
 > **Payments are in demo mode.** `PAYMENTS_MODE` in `backend/auth/topup.php` is `'mock'`. No real payment provider is contacted and no real money moves. "Add demo card" stores only a brand and the last 4 digits, never a full card number. `charge_payment()` is the single place a real provider (for example Stripe in test mode) would be added later.
@@ -320,6 +318,33 @@ flowchart LR
 The split route files in `frontend/map/data/` (`index.json` and `geo-*.json`) are committed, so routes work straight after pulling. Route lines load per region as you need them, and some data is fetched quietly in the background while you log in.
 
 Only the huge source file `routes.geojson` stays out of git. To rebuild the split files, put it in `frontend/map/data/` and run `node build-data.js` from `frontend/map/`.
+
+</details>
+
+<details>
+<summary><b>Accessible stops and routes</b></summary>
+
+<br>
+
+In **Route view**, once a route is picked, an **Only show wheelchair accessible stops** checkbox sits above **From** and **To**. When it's ticked, both lists only offer the route's accessible stops, and a line under the box says how many there are (for example "2 of 23 stops on this route are wheelchair accessible."). A From or To that isn't accessible is cleared. Unticking brings every stop back. The checkbox doesn't change which routes are listed or what the map draws. It stays ticked when you pick another route.
+
+The menu item **Accessible Stops & Routes** opens `map.html?accessible=1`, which starts with the checkbox ticked. On the map, a picked route's accessible stops are purple. Stop cards and route pop-ups say "♿ Wheelchair accessible" or "Not wheelchair accessible". If nothing is known about a stop or route, they say nothing.
+
+Access values come from three places. When more than one has a value, the later one in this list wins.
+
+1. **The timetable data (GTFS).** `convert.js` reads `wheelchair_boarding` from `stops.txt` and `wheelchair_accessible` from `trips.txt`. A stop with 0 inside a station takes the station's value. A route counts as accessible only when all its trips are. `build-data.js` saves the value as the last item of each stop and route in `index.json` (0 = not known, 1 = yes, 2 = no). Rebuild with `node convert.js "path/to/GTFS folder"` and then `node build-data.js`. In the November 2026 NTA feed every stop is 0 and trips have no column, so this gives nothing yet.
+2. **The NTA stop survey (PTIMS).** This is where most of the stop values come from. Download **PTIMS Map** (`ptims.zip`) from [Transport for Ireland's open data page](https://www.transportforireland.ie/transitData/PT_Data.html), unzip it outside the repo, and from `frontend/map/` run `node import-ptims.js "path/to/ptims folder"`. It fills the `ptims` part of `accessibility.json` from each stop's `WheelchairAccessibility`. The PTIMS `AtcoCode` is our stop id. Stops never surveyed are left as not known, because PTIMS marks them all False. The October 2026 file covers about 12,700 of the map's 13,532 stops. PTIMS has nothing about routes. Run it again when a new file comes out; it keeps your hand-checked values. The data is CC BY 4.0, so the map credits the NTA in its corner.
+3. **Checked by hand: the `stops` and `routes` parts of `frontend/map/data/accessibility.json`.** No rebuild is needed. Just edit the file and reload the map. Don't edit the `ptims` part by hand: the next import replaces it.
+
+```json
+{
+    "stops":  { "8460B525641": true, "8460B5232101": false },
+    "routes": { "2_409_c_a": true },
+    "ptims":  { "accessible": ["…"], "not_accessible": ["…"] }
+}
+```
+
+Keys are the stop id and route id from `index.json`. A stop card shows its stop id ("Stop 8460B525641"). To find a route's id, search `index.json` for the route number. `true` (or 1) means accessible and `false` (or 2) means not accessible. Leave out anything you haven't checked. If the file is missing or broken, the map ignores it.
 
 </details>
 

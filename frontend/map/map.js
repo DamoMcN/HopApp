@@ -15,6 +15,10 @@ const CONFIG = {
     INDEX_URL: 'data/index.json',
     GEO_URL: 'data/geo-',
 
+    // Wheelchair access for stops (from the NTA PTIMS survey, via import-ptims.js) and for stops and
+    // routes checked by hand, on top of what the timetable data says. Optional: the map works without it. Format and how to fill it in: see "Accessible stops and routes" in the README.
+    ACCESS_URL: 'data/accessibility.json',
+
     // Live buses come from backend/live/vehicles.php, which runs on WAMP with the rest of the PHP.
     // (The optional Node version, backend/live/server.js, works too: set this to 'http://localhost:3000/api/vehicles'.)
     // The map still works without live buses.
@@ -52,8 +56,24 @@ const COLORS = {
     from:     cssVar('--stop-from')      || '#176b3a',
     to:       cssVar('--stop-to')        || '#a93226',
     bus:      cssVar('--bus')            || '#f08a24',
-    you:      cssVar('--you')            || '#2563eb'
+    you:      cssVar('--you')            || '#2563eb',
+    access:   cssVar('--stop-accessible') || '#5a3d91'
 };
+
+// Wheelchair access values, the same as GTFS: 0 not known, 1 accessible, 2 not accessible
+const ACCESS = { UNKNOWN: 0, YES: 1, NO: 2 };
+
+function isAccessible(item) {
+    const value = item && (item.properties ? item.properties.wheelchair : item.wheelchair);
+    return value === ACCESS.YES;
+}
+
+// One line for a popup or stop card, or '' when nothing is known
+function accessText(value, what) {
+    if (value === ACCESS.YES) return '♿ Wheelchair accessible ' + what;
+    if (value === ACCESS.NO) return 'Not wheelchair accessible';
+    return '';
+}
 
 // Builds popup content with textContent, so odd characters in the data can't break the page
 function popupContent(title, lines) {
@@ -158,9 +178,19 @@ function fitPadding() {
     };
 }
 
+// Always leave this much map between the paddings. With the sheet pulled up there can be almost
+// none, and Leaflet then zooms all the way in.
+const MIN_FIT_HEIGHT = 160;
+
 function fitTo(bounds, extra) {
     if (!bounds || !bounds.isValid()) return;
-    map.fitBounds(bounds, Object.assign(fitPadding(), extra || {}));
+    const options = Object.assign(fitPadding(), extra || {});
+    const top = options.paddingTopLeft[1];
+    const room = map.getSize().y - top - options.paddingBottomRight[1];
+    if (room < MIN_FIT_HEIGHT) {
+        options.paddingBottomRight = [options.paddingBottomRight[0], Math.max(0, map.getSize().y - top - MIN_FIT_HEIGHT)];
+    }
+    map.fitBounds(bounds, options);
 }
 
 // =========================================
@@ -171,11 +201,13 @@ async function loadRoutes() {
     showMapMessage('Loading routes… the first load can take a moment.');
     $('region-select').disabled = true;
 
+    const accessLoad = loadAccessibility();   // downloads alongside the route index
     try {
         const response = await fetch(CONFIG.INDEX_URL);
         if (!response.ok) throw new Error('HTTP ' + response.status);
         allRoutes = buildRoutes(await response.json());
         if (allRoutes.length === 0) throw new Error('No routes in file');
+        applyAccessibility(await accessLoad);
     } catch (error) {
         console.error('Could not load route data:', error);
         showMapMessage(
@@ -197,7 +229,8 @@ async function loadRoutes() {
 // Their lines (geometry) are filled in later by loadGeo().
 function buildRoutes(data) {
     if (!data || !Array.isArray(data.stops) || !Array.isArray(data.routes)) throw new Error('Bad route index');
-    const stops = data.stops.map((s) => ({ id: String(s[0]), name: s[1], lat: s[2], lon: s[3] }));
+    // Older index files have no wheelchair item, so those stops and routes count as not known
+    const stops = data.stops.map((s) => ({ id: String(s[0]), name: s[1], lat: s[2], lon: s[3], wheelchair: s[4] || ACCESS.UNKNOWN }));
     return data.routes.map((r) => ({
         type: 'Feature',
         geometry: null,
@@ -205,9 +238,67 @@ function buildRoutes(data) {
         properties: {
             route_id: r[0], short_name: r[1], long_name: r[2], agency_name: r[3],
             region: r[4], display_name: r[5],
-            stops: r[7].map((i) => stops[i])
+            stops: r[7].map((i) => stops[i]),
+            wheelchair: r[8] || ACCESS.UNKNOWN
         }
     }));
+}
+
+// ---------- Wheelchair access from data/accessibility.json ----------
+// { "stops":  { "<stop id>":  true | false | 1 | 2, ... },        checked by hand
+//   "routes": { "<route id>": true | false | 1 | 2, ... },        checked by hand
+//   "ptims":  { "accessible": [ids], "not_accessible": [ids] } }  written by import-ptims.js
+// true or 1 = accessible, false or 2 = not accessible. Hand-checked values win over PTIMS, and both
+// replace what index.json says. A missing or broken file is ignored, so the map still loads.
+async function loadAccessibility() {
+    try {
+        const response = await fetch(CONFIG.ACCESS_URL, { cache: 'no-cache' });
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (error) {
+        console.warn('Could not read ' + CONFIG.ACCESS_URL + ':', error);
+        return null;
+    }
+}
+
+function accessValue(value) {
+    if (value === true || value === ACCESS.YES) return ACCESS.YES;
+    if (value === false || value === ACCESS.NO) return ACCESS.NO;
+    return null;   // anything else is ignored
+}
+
+function applyAccessibility(data) {
+    if (!data || typeof data !== 'object') return;
+    const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+    const routeValues = isObject(data.routes) ? data.routes : {};
+
+    // Stop id -> value: PTIMS first, then hand-checked stops on top
+    const stopValues = new Map();
+    const ptims = isObject(data.ptims) ? data.ptims : {};
+    [['accessible', ACCESS.YES], ['not_accessible', ACCESS.NO]].forEach(([list, value]) => {
+        if (Array.isArray(ptims[list])) ptims[list].forEach((id) => stopValues.set(String(id), value));
+    });
+    if (isObject(data.stops)) {
+        Object.keys(data.stops).forEach((id) => {
+            const value = accessValue(data.stops[id]);
+            if (value !== null) stopValues.set(id, value);
+        });
+    }
+
+    allRoutes.forEach((feature) => {
+        const p = feature.properties;
+        const routeValue = Object.prototype.hasOwnProperty.call(routeValues, p.route_id) ? accessValue(routeValues[p.route_id]) : null;
+        if (routeValue !== null) p.wheelchair = routeValue;
+        // Stop objects are shared between routes, so setting one sets it everywhere
+        p.stops.forEach((stop) => {
+            if (stopValues.has(stop.id)) stop.wheelchair = stopValues.get(stop.id);
+        });
+    });
+
+    // CC BY 4.0 asks for credit wherever the data is shown
+    if (Array.isArray(ptims.accessible) && ptims.accessible.length) {
+        map.attributionControl.addAttribution('Stop accessibility: NTA PTIMS (CC BY 4.0)');
+    }
 }
 
 // ---------- Route lines, loaded one region at a time ----------
@@ -303,6 +394,11 @@ function operatorAllowed(feature) {
     return isCitylink(feature) ? $('filter-citylink').checked : $('filter-tfi').checked;
 }
 
+// "Only show wheelchair accessible stops" (above From and To in Route view)
+function accessibleOnly() {
+    return $('filter-accessible').checked;
+}
+
 // Routes in the chosen region that pass the operator filters
 function visibleRoutes() {
     const region = $('region-select').value;
@@ -313,6 +409,20 @@ function visibleRoutes() {
         : allRoutes.filter((f) => f.properties.region === region);
 
     return inRegion.filter(operatorAllowed);
+}
+
+// Under the checkbox: how many of the route's stops are left to choose from
+function updateAccessStatus(shown, total) {
+    const status = $('access-status');
+    if (!accessibleOnly() || !activeRoute) {
+        status.textContent = '';
+        status.hidden = true;
+        return;
+    }
+    status.hidden = false;
+    status.textContent = shown === 0
+        ? 'None of the stops on this route are marked wheelchair accessible yet.'
+        : shown + ' of ' + total + ' stops on this route are wheelchair accessible.';
 }
 
 function resetRouteSelection() {
@@ -595,10 +705,20 @@ function pickRoute(routeId) {
     fetchLiveBuses();
 }
 
+// Fills the From and To lists with the route's stops. With "Only show wheelchair accessible stops"
+// ticked, only the accessible ones are listed (numbers keep their place on the route).
 function fillStopLists() {
     const stops = (activeRoute && activeRoute.properties.stops) || [];
+    const onlyAccessible = accessibleOnly();
 
+    stopLookup.clear();
+    $('depart-list').innerHTML = '';
+    $('arrive-list').innerHTML = '';
+
+    let shown = 0;
     stops.forEach((stop, index) => {
+        if (onlyAccessible && !isAccessible(stop)) return;
+        shown++;
         const label = (index + 1) + '. ' + stop.name + ' (Stop ' + stop.id + ')';
         stopLookup.set(label, stop.id);
 
@@ -608,7 +728,19 @@ function fillStopLists() {
             $(listId).appendChild(option);
         });
     });
+
+    updateAccessStatus(shown, stops.length);
 }
+
+// Ticking or unticking the box refills the lists. A From or To that is no longer listed is cleared.
+$('filter-accessible').addEventListener('change', () => {
+    if (!activeRoute) return;
+    fillStopLists();
+    ['depart-input', 'arrive-input'].forEach((id) => {
+        if ($(id).value && !stopLookup.has($(id).value)) $(id).value = '';
+    });
+    renderStops();
+});
 
 $('depart-input').addEventListener('input', () => renderStops());
 $('arrive-input').addEventListener('input', () => renderStops());
@@ -643,7 +775,7 @@ function drawLines(features) {
             const others = membersOf.get(feature).length - 1;
             line.bindPopup(popupContent(
                 'Route ' + p.short_name,
-                [p.long_name, p.agency_name || 'Unknown operator',
+                [p.long_name, p.agency_name || 'Unknown operator', accessText(p.wheelchair, 'buses'),
                  others > 0 ? '+ ' + others + (others === 1 ? ' other route uses' : ' other routes use') + ' this line' : '']
             ));
         }
@@ -666,8 +798,8 @@ function renderStops() {
     const picked = [];
 
     stops.forEach((stop, index) => {
-        let color = COLORS.route;
-        let radius = 5;
+        let color = isAccessible(stop) ? COLORS.access : COLORS.route;
+        let radius = isAccessible(stop) ? 6 : 5;
         let opacity = 0.9;
 
         if (stop.id === fromId) {
@@ -881,7 +1013,7 @@ function buildStopIndex() {
             let entry = stopIndex.get(id);
             if (!entry) {
                 entry = { id: id, name: String(stop.name || 'Unnamed stop'), lat: stop.lat, lon: stop.lon,
-                          search: normalise(stop.name) + ' ' + id, hits: [] };
+                          wheelchair: stop.wheelchair || ACCESS.UNKNOWN, search: normalise(stop.name) + ' ' + id, hits: [] };
                 stopIndex.set(id, entry);
             }
             entry.hits.push(routeIdx, position);
@@ -1370,7 +1502,7 @@ function stopCard(stop, extraLines, titlePrefix) {
     heading.textContent = (titlePrefix ? titlePrefix + ': ' : '') + stop.name;
     box.appendChild(heading);
 
-    ['Stop ' + stop.id].concat(extraLines || []).filter(Boolean).forEach((text) => {
+    ['Stop ' + stop.id, accessText(stop.wheelchair, 'stop')].concat(extraLines || []).filter(Boolean).forEach((text) => {
         const line = document.createElement('span');
         line.className = 'popup-line';
         line.textContent = text;
@@ -1520,9 +1652,17 @@ $('ticket-continue').addEventListener('click', () => {
     window.location.href = '../tickets/tickets.html';
 });
 
-// Opening map.html?mode=tickets starts on the ticket tab (and restores the last journey)
+// Opening map.html?mode=tickets starts on the ticket tab (and restores the last journey).
+// Opening map.html?accessible=1 (the menu's "Accessible Stops & Routes") starts with
+// "Only show wheelchair accessible stops" ticked, so From and To list accessible stops.
 function startInRequestedMode() {
-    const requested = new URLSearchParams(window.location.search).get('mode');
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('accessible') === '1') {
+        $('filter-accessible').checked = true;
+        setMode('routes', { expand: true });
+    }
+
+    const requested = params.get('mode');
     if (requested !== 'tickets') return;
 
     setMode('tickets', { expand: true });
