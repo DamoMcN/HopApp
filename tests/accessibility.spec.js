@@ -20,6 +20,7 @@ async function openMap(page, { access = MARKED, query = '' } = {}) {
   });
   await page.route('**/server.arcgisonline.com/**', route => route.abort());
   await page.route('**/hopapp.onrender.com/**', route => route.fulfill({ json: [] }));
+  await page.route('**/photon.komoot.io/**', route => route.fulfill({ json: { features: [] } }));
   await page.route('**/data/accessibility.json*', route => access === null
     ? route.fulfill({ status: 404, body: 'Not found' })
     : route.fulfill({ json: access }));
@@ -30,13 +31,20 @@ async function openMap(page, { access = MARKED, query = '' } = {}) {
 
 const accessBox = page => page.getByRole('checkbox', { name: 'Only show wheelchair accessible stops' });
 const status = page => page.locator('#access-status');
-const fromOptions = page => page.locator('#depart-list option');
-const toOptions = page => page.locator('#arrive-list option');
+const stopResults = page => page.locator('#search-results .result-stop');
 
 async function openSheet(page) {
   if (await page.locator('#plan-sheet').evaluate(el => el.classList.contains('is-collapsed'))) {
     await page.locator('#sheet-toggle').click();
   }
+}
+
+// Types in a search box and taps the first stop it suggests
+async function pickStop(page, inputId, text) {
+  await page.locator('#' + inputId).fill(text);
+  const result = page.locator('#' + (inputId === 'search-input' ? 'search-results' : 'origin-results') + ' .result-stop').first();
+  await expect(result).toBeVisible();
+  await result.click();
 }
 
 test('Stops and routes from accessibility.json are marked accessible', async ({ page }) => {
@@ -70,92 +78,111 @@ test('The stop card says when a stop is wheelchair accessible', async ({ page })
   await expect(page.locator('.stop-card')).toContainText('Wheelchair accessible stop');
 });
 
-// Galway, then route 409 from the route search
-async function pickRoute409(page) {
-  await openSheet(page);
-  await page.locator('#region-select').selectOption('Galway');
-  await page.locator('#route-input').click();
-  await page.locator('#route-input').fill('409');
-  await page.locator('#route-input').press('Enter');
-  await expect(page.locator('#stop-selectors')).toBeVisible();
-}
-
-test('The checkbox only appears once a route is picked, next to From and To', async ({ page }) => {
+// The checkbox sits in the journey panel and works on the search bar and journeys
+test('The checkbox is in the journey panel and starts unticked', async ({ page }) => {
   await openMap(page);
   await openSheet(page);
-  await expect(accessBox(page)).toBeHidden();
-  await pickRoute409(page);
   await expect(accessBox(page)).toBeVisible();
   await expect(accessBox(page)).not.toBeChecked();
+  await expect(status(page)).toBeHidden();
 });
 
-test('Ticking it limits From and To to accessible stops, unticking brings them all back', async ({ page }) => {
+test('Ticking it limits the stop search to accessible stops, unticking brings them all back', async ({ page }) => {
   await openMap(page);
-  await pickRoute409(page);
-  const total = await fromOptions(page).count();
-  expect(total).toBeGreaterThan(2);
-  await expect(status(page)).toBeHidden();
+  await openSheet(page);
+  const total = await page.evaluate(() => stopList.length);
+
+  await page.locator('#search-input').fill('Salthill');
+  await expect(stopResults(page).first()).toBeVisible();
 
   await accessBox(page).check();
-  await expect(fromOptions(page)).toHaveCount(2);
-  await expect(toOptions(page)).toHaveCount(2);
-  const labels = await fromOptions(page).evaluateAll(list => list.map(o => o.value));
-  expect(labels.some(l => l.includes('Eyre Square'))).toBe(true);
-  expect(labels.some(l => l.includes('College Road'))).toBe(true);
-  await expect(status(page)).toHaveText('2 of ' + total + ' stops on this route are wheelchair accessible.');
+  await expect(status(page)).toHaveText('Only stops marked wheelchair accessible are shown (2 of ' + total.toLocaleString('en-IE') + ').');
+  await page.locator('#search-input').fill('Salthil');
+  await page.locator('#search-input').fill('Salthill');
+  await expect(stopResults(page)).toHaveCount(0);
+
+  await page.locator('#search-input').fill('College Road');
+  await expect(stopResults(page)).toHaveCount(1);
 
   await accessBox(page).uncheck();
-  await expect(fromOptions(page)).toHaveCount(total);
   await expect(status(page)).toBeHidden();
+  await page.locator('#search-input').fill('Salthil');
+  await page.locator('#search-input').fill('Salthill');
+  await expect(stopResults(page).first()).toBeVisible();
 });
 
-test('Only accessible stops can be chosen, and a non-accessible From is cleared', async ({ page }) => {
+test('Journeys only get on and off at accessible stops', async ({ page }) => {
   await openMap(page);
-  await pickRoute409(page);
-  const all = await fromOptions(page).evaluateAll(list => list.map(o => o.value));
-  const notAccessible = all.find(l => !l.includes('Eyre Square') && !l.includes('College Road'));
-  const eyre = all.find(l => l.includes('Eyre Square'));
-
-  await page.locator('#depart-input').fill(notAccessible);
-  await page.locator('#arrive-input').fill(eyre);
+  await openSheet(page);
   await accessBox(page).check();
-  await expect(page.locator('#depart-input')).toHaveValue('');   // not accessible, so cleared
-  await expect(page.locator('#arrive-input')).toHaveValue(eyre); // accessible, so kept
+  await pickStop(page, 'search-input', 'College Road');
+  await pickStop(page, 'origin-input', 'Eyre Square');
 
-  // Typing a stop that isn't listed doesn't pick it
-  await page.locator('#depart-input').fill(notAccessible);
-  expect(await page.evaluate(() => stopLookup.get(document.getElementById('depart-input').value))).toBeUndefined();
+  const cards = page.locator('.option-card');
+  await expect(cards.first()).toContainText('409');
+  await expect(cards.first()).toContainText('Board at Eyre Square');
+  await expect(page.locator('.option-card', { hasText: '401' })).toHaveCount(0);
+
+  // Unticked, the 401 from the Eyre Square stop across the road is offered too
+  await accessBox(page).uncheck();
+  await expect(page.locator('.option-card', { hasText: '401' })).not.toHaveCount(0);
 });
 
-test('A route with no accessible stops says so', async ({ page }) => {
+test('A chosen stop that is not accessible is cleared', async ({ page }) => {
+  await openMap(page);
+  await openSheet(page);
+  await accessBox(page).check();
+  await pickStop(page, 'search-input', 'College Road');   // an accessible College Road stop
+  await accessBox(page).uncheck();
+  await pickStop(page, 'origin-input', 'Salthill Prom');
+  await expect(page.locator('.option-card').first()).toBeVisible();
+
+  // The starting point is not accessible: it is cleared and you are asked again
+  await accessBox(page).check();
+  await expect(page.locator('#map-message')).toContainText("Salthill Prom isn't marked wheelchair accessible, so it was cleared.");
+  await expect(page.locator('#origin-prompt')).toBeVisible();
+  await expect(page.locator('.option-card')).toHaveCount(0);
+  await expect(page.locator('#dest-name')).toHaveText('College Road');   // accessible, so kept
+
+  // A destination that is not accessible goes back to the start
+  await accessBox(page).uncheck();
+  await pickStop(page, 'search-input', 'Salthill Prom');
+  await accessBox(page).check();
+  await expect(page.locator('#view-idle')).toBeVisible();
+  await expect(page.locator('#search-input')).toHaveValue('');
+});
+
+test('With no accessible stops marked, it says so', async ({ page }) => {
   await openMap(page, { access: { stops: {}, routes: {} } });
-  await pickRoute409(page);
+  await openSheet(page);
   await accessBox(page).check();
-  await expect(fromOptions(page)).toHaveCount(0);
-  await expect(status(page)).toHaveText('None of the stops on this route are marked wheelchair accessible yet.');
+  await expect(status(page)).toHaveText('No stops are marked wheelchair accessible yet, so no stops or journeys can be shown.');
+  await page.locator('#search-input').fill('Eyre Square');
+  await expect(stopResults(page)).toHaveCount(0);
 });
 
-test('Routes and the map are not filtered by the checkbox', async ({ page }) => {
+test('Routes are not filtered by the checkbox', async ({ page }) => {
   await openMap(page);
-  await pickRoute409(page);
-  const before = await page.evaluate(() => stopsLayer.getLayers().length);
+  await openSheet(page);
   await accessBox(page).check();
-  expect(await page.evaluate(() => stopsLayer.getLayers().length)).toBe(before);
-  await page.locator('#route-input').click();
-  await page.locator('#route-input').fill('');
-  await expect.poll(() => page.locator('#route-results .route-option .bus-badge').count()).toBeGreaterThan(1);
+  await page.locator('#search-input').fill('409');
+  await expect(page.locator('#search-results .result-route').first()).toBeVisible();
+  await page.locator('#search-results .result-route').first().click();
+  await expect(page.locator('#view-route')).toBeVisible();
 });
 
 test('The menu link opens the map with the checkbox already ticked', async ({ page }) => {
   await openMap(page, { query: '?accessible=1' });
-  await pickRoute409(page);
+  await expect(accessBox(page)).toBeVisible();   // the panel opens so the ticked box is seen
   await expect(accessBox(page)).toBeChecked();
-  await expect(fromOptions(page)).toHaveCount(2);
+  await expect(status(page)).toBeVisible();
+  await page.locator('#search-input').fill('Salthill');
+  await expect(stopResults(page)).toHaveCount(0);
 });
 
 test('The map still loads without an accessibility file', async ({ page }) => {
   await openMap(page, { access: null });
-  await expect(page.locator('#region-select')).toBeEnabled();
+  await expect(page.locator('#search-input')).toBeEnabled();
   const marked = await page.evaluate(() => stopList.filter(s => s.wheelchair === 1).length);
   expect(marked).toBe(0);
 });

@@ -300,7 +300,7 @@ flowchart LR
 | ✅ | Optional My location with nearby stops | `frontend/map/` |
 | ✅ | Tap a stop: buses that stop there, next arrivals and delays (needs the hosted live server) | `frontend/map/`, `backend/live/` |
 | ✅ | Search routes by number or name, including city buses (Galway 401 to 412, Cork, Limerick, Waterford) | `frontend/map/` |
-| ✅ | "Only show wheelchair accessible stops" checkbox for From and To in Route view, accessible stops in purple, ♿ on stop cards (stop data from the NTA PTIMS survey) | `frontend/map/` |
+| ✅ | "Only show wheelchair accessible stops" checkbox for stop search and journeys, accessible stops in purple, ♿ on stop cards (stop data from the NTA PTIMS survey) | `frontend/map/` |
 | 🚧 | Actually buying a ticket | Coming soon |
 | 🚧 | Password reset | "Coming soon" pop-up for now |
 
@@ -326,9 +326,16 @@ Only the huge source file `routes.geojson` stays out of git. To rebuild the spli
 
 <br>
 
-In **Route view**, once a route is picked, an **Only show wheelchair accessible stops** checkbox sits above **From** and **To**. When it's ticked, both lists only offer the route's accessible stops, and a line under the box says how many there are (for example "2 of 23 stops on this route are wheelchair accessible."). A From or To that isn't accessible is cleared. Unticking brings every stop back. The checkbox doesn't change which routes are listed or what the map draws. It stays ticked when you pick another route.
+The journey panel has an **Only show wheelchair accessible stops** checkbox, under the **My location** switch. When it's ticked:
 
-The menu item **Accessible Stops & Routes** opens `map.html?accessible=1`, which starts with the checkbox ticked. On the map, a picked route's accessible stops are purple. Stop cards and route pop-ups say "♿ Wheelchair accessible" or "Not wheelchair accessible". If nothing is known about a stop or route, they say nothing.
+- the search bar and "Where are you starting from?" only suggest accessible stops, and **Stops near you** only lists accessible ones
+- journeys only get on and get off at accessible stops. If no direct bus does that, the panel says so
+- a chosen start or destination stop that isn't accessible is cleared, with a short message
+- a line under the box says how many stops are marked accessible (for example "Only stops marked wheelchair accessible are shown (2 of 9,500).")
+
+Unticking brings every stop back. Route search is never filtered.
+
+The menu item **Accessible Stops & Routes** opens `map.html?accessible=1`, which opens the panel with the checkbox ticked. On the map, accessible stops are purple (on a picked route and in **Stops near you**). Stop cards and route pop-ups say "♿ Wheelchair accessible" or "Not wheelchair accessible". If nothing is known about a stop or route, they say nothing.
 
 Access values come from three places. When more than one has a value, the later one in this list wins.
 

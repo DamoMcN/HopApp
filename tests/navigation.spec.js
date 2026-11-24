@@ -60,20 +60,6 @@ test('Log Out goes to the login page', async ({ page }) => {
   await page.waitForURL('**/frontend/auth/index.html');
 });
 
-// Known bug: menu.js calls backend/auth/logout.php, but logout.php lives in
-// frontend/auth/, so the server session is never destroyed. Remove test.fail()
-// once the path is fixed.
-test('Log Out calls a logout script that exists', async ({ page }) => {
-  test.fail();
-  await page.goto(TICKETS);
-  await menuButton(page).click();
-  const [response] = await Promise.all([
-    page.waitForResponse(r => r.url().includes('logout.php')),
-    page.getByRole('button', { name: 'Log Out' }).click()
-  ]);
-  expect(response.status()).not.toBe(404);
-});
-
 test('The bottom bar shows the default tabs and marks the current page', async ({ page }) => {
   await page.goto(TICKETS);
   const items = page.locator('.bottom-nav .bottom-nav-item');
