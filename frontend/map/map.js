@@ -518,6 +518,69 @@ function buildStopIndex() {
         });
     });
     stopList = Array.from(stopIndex.values());
+    buildPlaces();
+}
+
+// =========================================
+//  Places: stops with the same name next to each other
+//  "Eyre Square" is ten poles around the square, and most stops have one on each side of the road.
+//  Searching shows the place once, and finding buses uses every pole in it.
+// =========================================
+
+const PLACE_RADIUS_M = 400;
+let placeList = [];
+const placeOfStop = new Map();   // stop id -> place
+
+function buildPlaces() {
+    placeList = [];
+    placeOfStop.clear();
+    const byName = new Map();
+    stopList.forEach((stop) => {
+        const key = normalise(stop.name).trim();
+        if (!byName.has(key)) byName.set(key, []);
+        byName.get(key).push(stop);
+    });
+
+    byName.forEach((stops) => {
+        const groups = [];
+        stops.forEach((stop) => {
+            // Join the first group that has a pole close by (one "Main Street" per town)
+            const group = groups.find((g) => g.some((o) => distanceM(o.lat, o.lon, stop.lat, stop.lon) <= PLACE_RADIUS_M));
+            if (group) group.push(stop); else groups.push([stop]);
+        });
+        groups.forEach((members) => {
+            const hits = [];
+            const routeNames = new Set();
+            let region = '';
+            members.forEach((m) => {
+                for (let i = 0; i < m.hits.length; i += 2) {
+                    hits.push(m.hits[i], m.hits[i + 1]);
+                    const feature = allRoutes[m.hits[i]];
+                    routeNames.add(feature.properties.short_name);
+                    if (!region) region = feature.properties.region || '';
+                }
+            });
+            const place = {
+                id: members.length === 1 ? members[0].id : 'place:' + members[0].id,
+                name: members[0].name,
+                lat: members.reduce((sum, m) => sum + m.lat, 0) / members.length,
+                lon: members.reduce((sum, m) => sum + m.lon, 0) / members.length,
+                stops: members,
+                hits: hits,
+                routeCount: routeNames.size,
+                region: region === ALL_IRELAND ? '' : region,
+                // Stop numbers are searchable too, in any case
+                search: normalise(members[0].name) + ' ' + members.map((m) => m.id.toLowerCase()).join(' ')
+            };
+            placeList.push(place);
+            members.forEach((m) => placeOfStop.set(m.id, place));
+        });
+    });
+}
+
+// The place a single stop belongs to (or the stop itself if places aren't built yet)
+function placeFor(stop) {
+    return (stop && placeOfStop.get(String(stop.id))) || stop || null;
 }
 
 // Best matches first: name starts with the text, then a word starts with it, then anywhere.

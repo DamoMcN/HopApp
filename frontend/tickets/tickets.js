@@ -1,5 +1,5 @@
-// Tickets page. Shows the journey picked on the map (Buy a ticket tab).
-// Buying is not built yet: this only displays the saved journey.
+// Tickets page. Shows the journey picked on the map (Buy a ticket tab), lets the user choose
+// the date and time, pay with the Hop Card balance, and see their tickets with a QR code.
 
 const DRAFT_KEY = 'hop.ticketDraft';
 
@@ -31,9 +31,18 @@ function readDraft() {
     return ok ? draft : null;
 }
 
+let tickets = [];   // the user's tickets from the server
+
+function updateEmpty() {
+    const hasDraft = Boolean(readDraft());
+    document.getElementById('tickets-empty').hidden = hasDraft || tickets.length > 0;
+    // With tickets and no journey being bought: just a button to plan the next one
+    document.getElementById('plan-btn').hidden = hasDraft || tickets.length === 0;
+}
+
 function show(draft) {
     document.getElementById('journey').hidden = !draft;
-    document.getElementById('tickets-empty').hidden = Boolean(draft);
+    updateEmpty();
     if (!draft) return;
 
     const badge = document.getElementById('j-badge');

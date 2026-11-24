@@ -25,9 +25,12 @@
     </header>
 
     <main class="topup">
-        <p class="balance-line">
-            Current balance <strong id="balance-display">&mdash;</strong>
-        </p>
+        <section class="panel balance-panel" aria-label="Current balance">
+            <p class="balance-line">
+                <span>Current balance</span>
+                <strong id="balance-display">&mdash;</strong>
+            </p>
+        </section>
 
         <!-- 1. Shown when the user already has a recurring top up -->
         <section id="summary" class="panel" hidden>

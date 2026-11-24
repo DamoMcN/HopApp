@@ -53,14 +53,27 @@
             </div>
         </section>
 
+        <a class="plan-btn" id="plan-btn" href="../map/map.html?mode=tickets" hidden>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>
+            </svg>
+            Plan a journey
+        </a>
+
+        <section class="my-tickets" id="my-tickets" aria-labelledby="my-tickets-title" hidden>
+            <h2 id="my-tickets-title">My tickets</h2>
+            <ul class="ticket-list" id="ticket-list"></ul>
+        </section>
+
         <section class="tickets-empty" id="tickets-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M3 9a2 2 0 0 0 0 6v2.5A1.5 1.5 0 0 0 4.5 19h15a1.5 1.5 0 0 0 1.5-1.5V15a2 2 0 0 1 0-6V6.5A1.5 1.5 0 0 0 19.5 5h-15A1.5 1.5 0 0 0 3 6.5z"/>
                 <path d="M14 5v2M14 11v2M14 17v2"/>
             </svg>
-            <h2>Tickets are coming soon</h2>
-            <p>Soon you will be able to buy bus tickets here and show them when you board.</p>
+            <h2>No tickets yet</h2>
+            <p>Plan a journey on the map and buy a ticket. It will show up here with a QR code to show when you board.</p>
             <a href="../map/map.html?mode=tickets">Plan a journey</a>
         </section>
     </main>

@@ -100,6 +100,7 @@ http://localhost/HopApp/frontend/auth/index.html
 | 3 | `database/card_expiry_migration.sql` | **Logging in bounces you straight back to the login page** |
 | 4 | `database/saved_cards_migration.sql` | Saving your own card fails |
 | 5 | `database/recurring_topups_migration.sql` | Recurring top ups fail |
+| 6 | `database/ticket_travel_time_migration.sql` | Buying a ticket fails (no date and time saved) |
 
 </details>
 
@@ -465,7 +466,7 @@ HopApp/
 - [x] Journey planner and Tickets hand-off
 - [x] Live buses and optional My location
 - [x] Stop card with next buses and delays
-- [ ] Buy the ticket you planned (server must check `card_status = 'active'`)
+- [x] Buy the ticket you planned, with a date, time and QR code
 - [ ] Password reset
 - [ ] Replacement cards in the app (the FAQ points to Contact Support for now)
 - [ ] Regenerate the transport API key and keep it only in Render's environment variables

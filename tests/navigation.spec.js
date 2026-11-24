@@ -63,7 +63,7 @@ test('Log Out goes to the login page', async ({ page }) => {
 test('The bottom bar shows the default tabs and marks the current page', async ({ page }) => {
   await page.goto(TICKETS);
   const items = page.locator('.bottom-nav .bottom-nav-item');
-  await expect(items).toHaveText(['Card', 'Map', 'Tickets']);
+  await expect(items).toHaveText(['Card', 'Top Up', 'Map', 'Tickets']);
   await expect(page.locator('.bottom-nav [aria-current="page"]')).toHaveText('Tickets');
 });
 
@@ -91,7 +91,7 @@ test('A bad saved bar layout can never break the bar', async ({ page }) => {
       badStartPage:  s({ tabs: ['card', 'map'], startPage: 'nowhere' })
     };
   });
-  const defaults = { tabs: ['card', 'map', 'tickets'], startPage: 'card' };
+  const defaults = { tabs: ['card', 'topup', 'map', 'tickets'], startPage: 'card' };
 
   expect(result.nothing).toEqual(defaults);
   expect(result.junk).toEqual(defaults);
