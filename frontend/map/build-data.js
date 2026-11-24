@@ -86,7 +86,7 @@ const slug = (region) => region.toLowerCase().replace(/[^a-z0-9]+/g, '-').replac
 console.log('Reading ' + SOURCE + ' ...');
 const features = JSON.parse(fs.readFileSync(SOURCE, 'utf8')).features;
 
-const stopTable = [];            // [id, name, lat, lon]
+const stopTable = [];            // [id, name, lat, lon, wheelchair]  wheelchair: 0 not known, 1 yes, 2 no
 const stopPosition = new Map();  // id -> index in stopTable
 const routes = [];
 const geoByRegion = {};          // region -> { key: coordinates }
@@ -101,7 +101,7 @@ features.forEach((f) => {
         const id = String(s.id);
         if (!stopPosition.has(id)) {
             stopPosition.set(id, stopTable.length);
-            stopTable.push([id, s.name, round(s.lat), round(s.lon)]);
+            stopTable.push([id, s.name, round(s.lat), round(s.lon), s.wheelchair || 0]);
         }
         return stopPosition.get(id);
     });
@@ -120,11 +120,11 @@ features.forEach((f) => {
         key = geoKeys.get(lookup);
     }
 
-    routes.push([p.route_id, p.short_name, p.long_name, p.agency_name, region, p.display_name, key, stopRefs]);
+    routes.push([p.route_id, p.short_name, p.long_name, p.agency_name, region, p.display_name, key, stopRefs, p.wheelchair || 0]);   // last item: wheelchair, as for stops
 });
 
 fs.writeFileSync(path.join(DATA, 'index.json'),
-    JSON.stringify({ version: 1, regions: Object.keys(geoByRegion).sort(), stops: stopTable, routes: routes }));
+    JSON.stringify({ version: 2, regions: Object.keys(geoByRegion).sort(), stops: stopTable, routes: routes }));
 
 Object.keys(geoByRegion).forEach((region) => {
     fs.writeFileSync(path.join(DATA, 'geo-' + slug(region) + '.json'), JSON.stringify(geoByRegion[region]));

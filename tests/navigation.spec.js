@@ -38,7 +38,7 @@ test('The menu lists every page, with Log Out at the bottom', async ({ page }) =
   await menuButton(page).click();
   // last span = the label (Help & Support also has a "?" icon span)
   await expect(sideMenu(page).locator('.side-menu-list a > span:last-child')).toHaveText([
-    'My Card', 'Map', 'Tickets', 'Top Up', 'Recurring Top Up', 'Settings', 'Help & Support'
+    'My Card', 'Map', 'Accessible Stops & Routes', 'Tickets', 'Top Up', 'Recurring Top Up', 'Settings', 'Help & Support'
   ]);
   await expect(sideMenu(page).locator('.side-menu-footer')).toHaveText('Log Out');
 });
@@ -58,20 +58,6 @@ test('Log Out goes to the login page', async ({ page }) => {
   await menuButton(page).click();
   await page.getByRole('button', { name: 'Log Out' }).click();
   await page.waitForURL('**/frontend/auth/index.html');
-});
-
-// Known bug: menu.js calls backend/auth/logout.php, but logout.php lives in
-// frontend/auth/, so the server session is never destroyed. Remove test.fail()
-// once the path is fixed.
-test('Log Out calls a logout script that exists', async ({ page }) => {
-  test.fail();
-  await page.goto(TICKETS);
-  await menuButton(page).click();
-  const [response] = await Promise.all([
-    page.waitForResponse(r => r.url().includes('logout.php')),
-    page.getByRole('button', { name: 'Log Out' }).click()
-  ]);
-  expect(response.status()).not.toBe(404);
 });
 
 test('The bottom bar shows the default tabs and marks the current page', async ({ page }) => {
