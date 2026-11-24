@@ -62,7 +62,7 @@ const COLORS = {
     to:       cssVar('--stop-to')        || '#a93226',
     bus:      cssVar('--bus')            || '#f08a24',
     you:      cssVar('--you')            || '#2563eb',
-    access:   cssVar('--stop-accessible') || '#5a3d91'
+    access:   cssVar('--stop-accessible') || '#9b5de5'
 };
 
 // Wheelchair access values, the same as GTFS: 0 not known, 1 accessible, 2 not accessible
@@ -79,7 +79,7 @@ function stopColor(stop) {
 
 // "Only show wheelchair accessible stops" (in the journey panel). When ticked, stop search,
 // nearby stops and the stops a journey can use are limited to accessible ones. Routes are not
-// filtered. map.html?accessible=1 (the menu's "Accessible Stops & Routes" link) ticks it.
+// filtered. map.html?accessible=1 also ticks it.
 const accessBox = document.getElementById('filter-accessible');
 if (new URLSearchParams(window.location.search).get('accessible') === '1') accessBox.checked = true;
 

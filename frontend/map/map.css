@@ -10,7 +10,7 @@
     --stop-to: var(--negative);
     --bus: #f08a24;              /* live buses */
     --you: #2563eb;              /* your own location */
-    --stop-accessible: #5a3d91;  /* wheelchair accessible stops: Hop purple, because it is Hop's own info */
+    --stop-accessible: #9b5de5;  /* wheelchair accessible stops: bright violet, easy to tell from green routes */
     --map-water: #d9c8f0;
 
     --sheet-radius: 24px;
