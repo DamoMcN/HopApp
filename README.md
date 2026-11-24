@@ -335,7 +335,7 @@ The journey panel has an **Only show wheelchair accessible stops** checkbox, und
 
 Unticking brings every stop back. Route search is never filtered.
 
-The menu item **Accessible Stops & Routes** opens `map.html?accessible=1`, which opens the panel with the checkbox ticked. On the map, accessible stops are purple (on a picked route and in **Stops near you**). Stop cards and route pop-ups say "♿ Wheelchair accessible" or "Not wheelchair accessible". If nothing is known about a stop or route, they say nothing.
+The checkbox is in the map's journey panel (there is no separate menu item or page; `map.html?accessible=1` still opens the map with it ticked). On the map, accessible stops are violet (on a picked route and in **Stops near you**). Stop cards and route pop-ups say "♿ Wheelchair accessible" or "Not wheelchair accessible". If nothing is known about a stop or route, they say nothing.
 
 Access values come from three places. When more than one has a value, the later one in this list wins.
 

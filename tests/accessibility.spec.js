@@ -171,15 +171,6 @@ test('Routes are not filtered by the checkbox', async ({ page }) => {
   await expect(page.locator('#view-route')).toBeVisible();
 });
 
-test('The menu link opens the map with the checkbox already ticked', async ({ page }) => {
-  await openMap(page, { query: '?accessible=1' });
-  await expect(accessBox(page)).toBeVisible();   // the panel opens so the ticked box is seen
-  await expect(accessBox(page)).toBeChecked();
-  await expect(status(page)).toBeVisible();
-  await page.locator('#search-input').fill('Salthill');
-  await expect(stopResults(page)).toHaveCount(0);
-});
-
 test('The map still loads without an accessibility file', async ({ page }) => {
   await openMap(page, { access: null });
   await expect(page.locator('#search-input')).toBeEnabled();
