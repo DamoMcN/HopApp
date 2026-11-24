@@ -1819,21 +1819,20 @@ async function showRoute(feature) {
     activeRoute = feature;
     fetchLiveBuses();
 
-    // Both directions share a route id
-    const same = allRoutes.filter((f) => f.properties.route_id === p.route_id);
+    // One direction at a time: route-details.js offers "Switch direction" to show the other one
     try {
-        await ensureGeo(same.map((f) => f.properties.region));
+        await ensureGeo([p.region]);
     } catch (error) {
         console.warn('Route line unavailable:', error);
     }
     if (token !== routeToken) return;
 
     const color = isCitylink(feature) ? COLORS.citylink : COLORS.route;
-    const layer = L.geoJSON({ type: 'FeatureCollection', features: same.filter((f) => f.geometry) }, {
+    const layer = L.geoJSON({ type: 'FeatureCollection', features: feature.geometry ? [feature] : [] }, {
         style: { color: color, weight: 5, opacity: 0.85 }
     }).addTo(journeyLayer);
 
-    const stops = same.reduce((a, f) => (f.properties.stops.length > a.length ? f.properties.stops : a), []);
+    const stops = p.stops || [];
     const points = [];
     stops.forEach((stop, i) => {
         const marker = L.circleMarker([stop.lat, stop.lon], {
