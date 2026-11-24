@@ -174,3 +174,71 @@
     border-radius: 12px;
     text-decoration: none;
 }
+
+/* ---------- Price and payment (HOP Up Priority Payment) ---------- */
+
+.ticket-price {
+    margin-top: 1rem;
+    font-weight: 700;
+    color: var(--card-ink);
+}
+
+.pay-dialog {
+    width: min(360px, 92vw);
+    margin: auto;
+    padding: 1.4rem;
+    border: none;
+    border-radius: 20px;
+    background: var(--background-color);
+    color: var(--text-main);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    text-align: center;
+}
+
+.pay-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+.pay-dialog h2 { font-size: 1.25rem; margin-bottom: 0.6rem; }
+.pay-journey { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+
+.pay-rows div {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #ddd0ea;
+}
+
+.pay-rows dt { color: var(--text-muted); }
+.pay-rows dd { margin: 0; font-weight: 700; }
+
+.pay-secondary {
+    width: 100%;
+    margin-top: 0.6rem;
+    padding: 0.9rem;
+    font: inherit;
+    font-weight: 700;
+    color: var(--card-ink);
+    background: none;
+    border: 2px solid var(--card-ink);
+    border-radius: 14px;
+    cursor: pointer;
+}
+
+.pay-link { display: block; text-decoration: none; text-align: center; }
+.pay-link[hidden] { display: none; }
+
+.pay-mark {
+    width: 56px;
+    height: 56px;
+    margin: 0.4rem auto 0.8rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.pay-mark.ok  { background: var(--positive); }
+.pay-mark.err { background: var(--negative); }
+.pay-result-title { font-weight: 700; margin-bottom: 0.4rem; }
+#pay-result-text { color: var(--text-muted); font-size: 0.95rem; }
