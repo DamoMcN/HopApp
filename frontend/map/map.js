@@ -33,6 +33,11 @@ const CONFIG = {
     TILE_URL: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
     TILE_ATTRIBUTION: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
 
+    // Place search (Photon, built on OpenStreetMap). What you type is sent to this service.
+    // Set to '' to search only bus stops and routes.
+    PLACES_URL: 'https://photon.komoot.io/api/',
+    PLACES_BBOX: '-10.7,51.3,-5.3,55.5',   // west,south,east,north: the island of Ireland
+
     START_CENTER: [53.4, -8.0],
     START_ZOOM: 7
 };
@@ -66,6 +71,44 @@ const ACCESS = { UNKNOWN: 0, YES: 1, NO: 2 };
 function isAccessible(item) {
     const value = item && (item.properties ? item.properties.wheelchair : item.wheelchair);
     return value === ACCESS.YES;
+}
+
+function stopColor(stop) {
+    return isAccessible(stop) ? COLORS.access : COLORS.route;
+}
+
+// "Only show wheelchair accessible stops" (in the journey panel). When ticked, stop search,
+// nearby stops and the stops a journey can use are limited to accessible ones. Routes are not
+// filtered. map.html?accessible=1 (the menu's "Accessible Stops & Routes" link) ticks it.
+const accessBox = document.getElementById('filter-accessible');
+if (new URLSearchParams(window.location.search).get('accessible') === '1') accessBox.checked = true;
+
+function accessibleOnly() {
+    return accessBox.checked;
+}
+
+let accessibleCache = null;   // stopList filtered, rebuilt when the stop list changes
+function usableStops() {
+    if (!accessibleOnly()) return stopList;
+    if (!accessibleCache || accessibleCache.from !== stopList) {
+        accessibleCache = { from: stopList, list: stopList.filter(isAccessible) };
+    }
+    return accessibleCache.list;
+}
+
+function updateAccessStatus() {
+    const status = document.getElementById('access-status');
+    if (!accessibleOnly() || !stopList.length) {
+        status.textContent = '';
+        status.hidden = true;
+        return;
+    }
+    const count = usableStops().length;
+    status.hidden = false;
+    status.textContent = count === 0
+        ? 'No stops are marked wheelchair accessible yet, so no stops or journeys can be shown.'
+        : 'Only stops marked wheelchair accessible are shown (' + count.toLocaleString('en-IE') + ' of ' +
+          stopList.length.toLocaleString('en-IE') + ').';
 }
 
 // One line for a popup or stop card, or '' when nothing is known
@@ -121,15 +164,14 @@ L.tileLayer(CONFIG.TILE_URL, {
 const linesLayer = L.layerGroup().addTo(map);
 const stopsLayer = L.layerGroup().addTo(map);
 const busesLayer = L.layerGroup().addTo(map);
-const ticketLayer = L.layerGroup();   // only on the map in "Buy a ticket" mode
+const journeyLayer = L.layerGroup().addTo(map);   // the chosen route, walking legs and stops
 
 // =========================================
 //  State
 // =========================================
 
 let allRoutes = [];          // every route feature from the GeoJSON
-let activeRoute = null;      // the single route picked in the dropdown, if any
-const stopLookup = new Map();   // dropdown label -> stop id
+let activeRoute = null;      // the route whose live buses are showing, if any
 
 // =========================================
 //  Loading message (on top of the map)
@@ -160,7 +202,7 @@ sheetToggle.addEventListener('click', () => {
 });
 
 // Dragging the map tucks the sheet away so there is room to move around.
-// Tap the handle (or a tab) to bring it back.
+// Tap the handle to bring it back.
 map.on('dragstart', () => {
     if (sheet.classList.contains('is-collapsed')) return;
     sheet.classList.add('is-collapsed');
@@ -199,7 +241,6 @@ function fitTo(bounds, extra) {
 
 async function loadRoutes() {
     showMapMessage('Loading routes… the first load can take a moment.');
-    $('region-select').disabled = true;
 
     const accessLoad = loadAccessibility();   // downloads alongside the route index
     try {
@@ -217,11 +258,10 @@ async function loadRoutes() {
         return;
     }
 
-    fillRegions();
     buildStopIndex();
     refreshLocationFeatures();
     hideMapMessage();
-    startInRequestedMode();
+    onRoutesLoaded();
     prefetchRegionLines();
 }
 
@@ -360,314 +400,6 @@ function ensureGeo(regions) {
     return Promise.all([...new Set(regions)].map(loadGeo));
 }
 
-function fillRegions() {
-    const select = $('region-select');
-    select.innerHTML = '';
-
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Choose a region';
-    select.appendChild(placeholder);
-
-    const all = document.createElement('option');
-    all.value = ALL_IRELAND;
-    all.textContent = 'All of Ireland';
-    select.appendChild(all);
-
-    [...new Set(allRoutes.map((f) => f.properties.region))].sort().forEach((region) => {
-        const option = document.createElement('option');
-        option.value = region;
-        option.textContent = region;
-        select.appendChild(option);
-    });
-
-    select.disabled = false;
-}
-
-$('map-retry').addEventListener('click', loadRoutes);
-
-// =========================================
-//  Which routes are showing
-// =========================================
-
-function operatorAllowed(feature) {
-    return isCitylink(feature) ? $('filter-citylink').checked : $('filter-tfi').checked;
-}
-
-// "Only show wheelchair accessible stops" (above From and To in Route view)
-function accessibleOnly() {
-    return $('filter-accessible').checked;
-}
-
-// Routes in the chosen region that pass the operator filters
-function visibleRoutes() {
-    const region = $('region-select').value;
-    if (!region) return [];
-
-    const inRegion = region === ALL_IRELAND
-        ? allRoutes
-        : allRoutes.filter((f) => f.properties.region === region);
-
-    return inRegion.filter(operatorAllowed);
-}
-
-// Under the checkbox: how many of the route's stops are left to choose from
-function updateAccessStatus(shown, total) {
-    const status = $('access-status');
-    if (!accessibleOnly() || !activeRoute) {
-        status.textContent = '';
-        status.hidden = true;
-        return;
-    }
-    status.hidden = false;
-    status.textContent = shown === 0
-        ? 'None of the stops on this route are marked wheelchair accessible yet.'
-        : shown + ' of ' + total + ' stops on this route are wheelchair accessible.';
-}
-
-function resetRouteSelection() {
-    activeRoute = null;
-    stopsLayer.clearLayers();
-    busesLayer.clearLayers();
-    stopLookup.clear();
-    $('stop-selectors').hidden = true;
-    $('depart-input').value = '';
-    $('arrive-input').value = '';
-    $('depart-list').innerHTML = '';
-    $('arrive-list').innerHTML = '';
-    $('trip-hint').textContent = '';
-    setLiveStatus('');
-}
-
-let regionToken = 0;
-
-async function updateRegionView() {
-    const token = ++regionToken;
-    const region = $('region-select').value;
-
-    linesLayer.clearLayers();
-    resetRouteSelection();
-
-    $('operator-filters').hidden = !region;
-    $('route-container').hidden = !region || region === ALL_IRELAND;
-
-    if (!region) return;
-
-    const routes = visibleRoutes();
-
-    if (region !== ALL_IRELAND) {
-        fillRouteDropdown(routes);
-    }
-
-    if (routes.length === 0) {
-        showToast('No routes for these operators in this region.');
-        return;
-    }
-
-    const needed = region === ALL_IRELAND ? [...new Set(allRoutes.map((f) => f.properties.region))] : [region];
-    if (!needed.every((r) => geoLoaded.has(r))) showMapMessage('Loading routes…');
-    try {
-        await ensureGeo(needed);
-    } catch (error) {
-        console.error('Could not load route lines:', error);
-        if (token === regionToken) showToast("Couldn't load these routes. Please try again.");
-        return;
-    }
-    if (token !== regionToken) return;   // a different region was picked meanwhile
-
-    hideMapMessage();
-    drawLines(routes);
-}
-
-// ----- Route search (Route view) -----
-// One entry per route name, sorted by number. The text box searches number, name and operator.
-let routeOptions = [];
-const routeSearchText = new Map();   // route -> normalised text to search
-
-function fillRouteDropdown(routes) {
-    const unique = [...new Map(routes.map((f) => [f.properties.display_name, f])).values()];
-    routeOptions = unique.sort((a, b) =>
-        String(a.properties.short_name).localeCompare(String(b.properties.short_name), undefined, { numeric: true }));
-    routeOptions.forEach((f) => {
-        const p = f.properties;
-        routeSearchText.set(f, normalise(p.short_name + ' ' + p.long_name + ' ' + p.agency_name));
-    });
-    routePicker.reset();
-}
-
-function searchRoutes(query) {
-    const text = normalise(query).trim();
-    if (!text) return routeOptions.slice();
-    const tokens = text.split(/\s+/);
-    const scored = [];
-
-    routeOptions.forEach((feature) => {
-        const hay = routeSearchText.get(feature) || '';
-        if (!tokens.every((t) => hay.includes(t))) return;
-        const short = normalise(feature.properties.short_name);
-        let rank = 3;
-        if (short === text) rank = 0;
-        else if (short.startsWith(text)) rank = 1;
-        else if (hay.includes(' ' + tokens[0])) rank = 2;
-        scored.push({ feature: feature, rank: rank });
-    });
-
-    // Already in number order, so a stable sort by rank keeps ties tidy
-    scored.sort((a, b) => a.rank - b.rank);
-    return scored.map((x) => x.feature);
-}
-
-function createRoutePicker() {
-    const input = $('route-input');
-    const list = $('route-results');
-    let items = [];       // 'all' or a route
-    let active = -1;
-    let hasRoute = false; // is one route picked right now?
-
-    const sheetEl = $('plan-sheet');
-
-    function close() {
-        list.hidden = true;
-        sheetEl.classList.remove('is-searching');
-        input.setAttribute('aria-expanded', 'false');
-        input.removeAttribute('aria-activedescendant');
-        active = -1;
-    }
-
-    function highlight(index) {
-        active = index;
-        Array.from(list.children).forEach((li, i) => li.setAttribute('aria-selected', String(i === active)));
-        if (active >= 0) {
-            input.setAttribute('aria-activedescendant', list.children[active].id);
-            list.children[active].scrollIntoView({ block: 'nearest' });
-        } else {
-            input.removeAttribute('aria-activedescendant');
-        }
-    }
-
-    function open() {
-        if (routeOptions.length === 0) { close(); return; }
-        const query = input.value;
-        const matches = searchRoutes(query);
-        items = query.trim() ? matches : ['all'].concat(matches);
-        list.innerHTML = '';
-
-        if (items.length === 0) {
-            const li = document.createElement('li');
-            li.className = 'picker-empty';
-            li.textContent = 'No routes found';
-            list.appendChild(li);
-        }
-
-        items.forEach((item, i) => {
-            const li = document.createElement('li');
-            li.id = 'route-results-' + i;
-            li.className = 'route-option';
-            li.setAttribute('role', 'option');
-            li.setAttribute('aria-selected', 'false');
-
-            if (item === 'all') {
-                const text = document.createElement('div');
-                text.className = 'route-option-text';
-                const name = document.createElement('span');
-                name.textContent = 'Show all routes in this region';
-                const small = document.createElement('small');
-                small.textContent = routeOptions.length + ' routes';
-                text.appendChild(name);
-                text.appendChild(small);
-                li.appendChild(text);
-            } else {
-                const p = item.properties;
-                const badge = document.createElement('span');
-                badge.className = 'bus-badge' + (isCitylink(item) ? ' is-citylink' : '');
-                badge.textContent = p.short_name || '?';
-                const text = document.createElement('div');
-                text.className = 'route-option-text';
-                const name = document.createElement('span');
-                name.textContent = p.long_name || p.display_name;
-                const small = document.createElement('small');
-                small.textContent = p.agency_name || '';
-                text.appendChild(name);
-                text.appendChild(small);
-                li.appendChild(badge);
-                li.appendChild(text);
-            }
-
-            li.addEventListener('click', () => choose(item));
-            list.appendChild(li);
-        });
-
-        list.hidden = false;
-        // Give the list room: the sheet grows while searching and the box scrolls to the top
-        sheetEl.classList.add('is-searching');
-        $('route-container').scrollIntoView({ block: 'start' });
-        input.setAttribute('aria-expanded', 'true');
-        active = -1;
-        list.scrollTop = 0;
-    }
-
-    function choose(item) {
-        close();
-        if (item === 'all') {
-            input.value = '';
-            hasRoute = false;
-            pickRoute('all');
-        } else {
-            const p = item.properties;
-            input.value = (p.short_name || '') + ' · ' + (p.long_name || p.display_name);
-            hasRoute = true;
-            pickRoute(p.route_id);
-        }
-    }
-
-    // Keep focus in the box while tapping a result
-    list.addEventListener('mousedown', (event) => event.preventDefault());
-
-    input.addEventListener('focus', () => { input.select(); open(); });
-    input.addEventListener('click', () => { if (list.hidden) open(); });
-
-    input.addEventListener('input', () => {
-        // Clearing the box goes back to showing every route in the region
-        if (!input.value.trim() && hasRoute) {
-            hasRoute = false;
-            pickRoute('all');
-        }
-        open();
-    });
-
-    input.addEventListener('keydown', (event) => {
-        const count = items.length;
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            if (list.hidden) open();
-            else if (count) highlight((active + 1) % count);
-        } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            if (count) highlight((active - 1 + count) % count);
-        } else if (event.key === 'Enter') {
-            if (!list.hidden && count) {
-                event.preventDefault();
-                choose(items[active >= 0 ? active : 0]);
-            }
-        } else if (event.key === 'Escape') {
-            close();
-        }
-    });
-
-    input.addEventListener('blur', close);
-
-    return {
-        // A new region or operator filter: empty the box, nothing picked
-        reset: () => { input.value = ''; hasRoute = false; close(); }
-    };
-}
-
-const routePicker = createRoutePicker();
-
-$('region-select').addEventListener('change', updateRegionView);
-$('filter-tfi').addEventListener('change', updateRegionView);
-$('filter-citylink').addEventListener('change', updateRegionView);
-
 // A short message in the map message box that fades away
 let toastTimer = null;
 function showToast(text) {
@@ -675,180 +407,6 @@ function showToast(text) {
     $('map-message').classList.add('is-error');   // hides the spinner
     clearTimeout(toastTimer);
     toastTimer = setTimeout(hideMapMessage, 2500);
-}
-
-// =========================================
-//  Picking one route
-// =========================================
-
-function pickRoute(routeId) {
-    resetRouteSelection();
-
-    if (routeId === 'all') {
-        drawLines(visibleRoutes());
-        return;
-    }
-
-    // A route can have several variants (short turns, other directions). Use the fullest one.
-    activeRoute = allRoutes
-        .filter((f) => f.properties.route_id === routeId)
-        .reduce((best, f) => (!best || (f.properties.stops || []).length > (best.properties.stops || []).length ? f : best), null);
-    if (!activeRoute) return;
-
-    // Show the stop pickers first: they make the sheet taller, and the map
-    // needs to know the final sheet height to frame the route above it
-    fillStopLists();
-    $('stop-selectors').hidden = false;
-
-    drawLines([activeRoute]);
-    renderStops();
-    fetchLiveBuses();
-}
-
-// Fills the From and To lists with the route's stops. With "Only show wheelchair accessible stops"
-// ticked, only the accessible ones are listed (numbers keep their place on the route).
-function fillStopLists() {
-    const stops = (activeRoute && activeRoute.properties.stops) || [];
-    const onlyAccessible = accessibleOnly();
-
-    stopLookup.clear();
-    $('depart-list').innerHTML = '';
-    $('arrive-list').innerHTML = '';
-
-    let shown = 0;
-    stops.forEach((stop, index) => {
-        if (onlyAccessible && !isAccessible(stop)) return;
-        shown++;
-        const label = (index + 1) + '. ' + stop.name + ' (Stop ' + stop.id + ')';
-        stopLookup.set(label, stop.id);
-
-        ['depart-list', 'arrive-list'].forEach((listId) => {
-            const option = document.createElement('option');
-            option.value = label;
-            $(listId).appendChild(option);
-        });
-    });
-
-    updateAccessStatus(shown, stops.length);
-}
-
-// Ticking or unticking the box refills the lists. A From or To that is no longer listed is cleared.
-$('filter-accessible').addEventListener('change', () => {
-    if (!activeRoute) return;
-    fillStopLists();
-    ['depart-input', 'arrive-input'].forEach((id) => {
-        if ($(id).value && !stopLookup.has($(id).value)) $(id).value = '';
-    });
-    renderStops();
-});
-
-$('depart-input').addEventListener('input', () => renderStops());
-$('arrive-input').addEventListener('input', () => renderStops());
-
-// =========================================
-//  Drawing routes and stops
-// =========================================
-
-function drawLines(features) {
-    linesLayer.clearLayers();
-    features = (features || []).filter((f) => f.geometry);
-    if (features.length === 0) return;
-
-    // Routes that run along the same line are drawn once
-    const groups = new Map();
-    features.forEach((f) => {
-        const key = f.geoKey + '|' + isCitylink(f);
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(f);
-    });
-    const drawn = Array.from(groups.values(), (members) => members[0]);
-    const membersOf = new Map(Array.from(groups.values(), (members) => [members[0], members]));
-
-    const layer = L.geoJSON({ type: 'FeatureCollection', features: drawn }, {
-        style: (feature) => ({
-            color: isCitylink(feature) ? COLORS.citylink : COLORS.route,
-            weight: features.length === 1 ? 5 : 3,
-            opacity: 0.85
-        }),
-        onEachFeature: (feature, line) => {
-            const p = feature.properties;
-            const others = membersOf.get(feature).length - 1;
-            line.bindPopup(popupContent(
-                'Route ' + p.short_name,
-                [p.long_name, p.agency_name || 'Unknown operator', accessText(p.wheelchair, 'buses'),
-                 others > 0 ? '+ ' + others + (others === 1 ? ' other route uses' : ' other routes use') + ' this line' : '']
-            ));
-        }
-    }).addTo(linesLayer);
-
-    routesBounds = layer.getBounds();
-    fitTo(routesBounds);
-}
-
-function renderStops() {
-    stopsLayer.clearLayers();
-    if (!activeRoute || !activeRoute.properties.stops) return;
-
-    const stops = activeRoute.properties.stops;
-    const fromId = stopLookup.get($('depart-input').value);
-    const toId = stopLookup.get($('arrive-input').value);
-    const fromIndex = stops.findIndex((s) => s.id === fromId);
-    const toIndex = stops.findIndex((s) => s.id === toId);
-    const haveTrip = fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
-    const picked = [];
-
-    stops.forEach((stop, index) => {
-        let color = isAccessible(stop) ? COLORS.access : COLORS.route;
-        let radius = isAccessible(stop) ? 6 : 5;
-        let opacity = 0.9;
-
-        if (stop.id === fromId) {
-            color = COLORS.from;
-            radius = 9;
-        } else if (stop.id === toId) {
-            color = COLORS.to;
-            radius = 9;
-        }
-
-        // With a trip chosen, fade the stops that are not part of it
-        if (haveTrip && (index < fromIndex || index > toIndex)) opacity = 0.25;
-
-        const marker = L.circleMarker([stop.lat, stop.lon], {
-            radius: radius,
-            fillColor: color,
-            fillOpacity: opacity,
-            color: '#ffffff',
-            weight: 2,
-            opacity: 1
-        }).addTo(stopsLayer);
-
-        bindStopCard(marker, stop, [
-            'Stop ' + (index + 1) + ' of ' + stops.length + ' on route ' + activeRoute.properties.short_name
-        ]);
-
-        if (stop.id === fromId || stop.id === toId) picked.push([stop.lat, stop.lon]);
-    });
-
-    updateTripHint(stops, fromIndex, toIndex);
-
-    // With a From and/or To chosen, zoom to them (otherwise drawLines already framed the route)
-    if (picked.length > 0) fitTo(L.latLngBounds(picked), { maxZoom: 15 });
-}
-
-function updateTripHint(stops, fromIndex, toIndex) {
-    const hint = $('trip-hint');
-
-    if (fromIndex === -1 || toIndex === -1) {
-        hint.textContent = '';
-    } else if (fromIndex === toIndex) {
-        hint.textContent = 'Pick two different stops.';
-    } else if (fromIndex > toIndex) {
-        hint.textContent = 'This route runs the other way. Try swapping From and To.';
-    } else {
-        const between = toIndex - fromIndex;
-        hint.textContent = between + (between === 1 ? ' stop' : ' stops') +
-            ' from ' + stops[fromIndex].name + ' to ' + stops[toIndex].name + '.';
-    }
 }
 
 // =========================================
@@ -873,7 +431,7 @@ function busIcon() {
 let liveController = null;
 
 async function fetchLiveBuses() {
-    if (!activeRoute || mode !== 'routes') {
+    if (!activeRoute) {
         busesLayer.clearLayers();
         setLiveStatus('');
         return;
@@ -923,71 +481,11 @@ async function fetchLiveBuses() {
 
 // Refresh while the page is visible and a route is selected
 setInterval(() => {
-    if (!document.hidden && activeRoute && mode === 'routes') fetchLiveBuses();
+    if (!document.hidden && activeRoute) fetchLiveBuses();
 }, CONFIG.LIVE_REFRESH_MS);
 
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && activeRoute && mode === 'routes') fetchLiveBuses();
-});
-
-// =========================================
-//  Tabs: Route view / Buy a ticket
-// =========================================
-
-const MODES = ['routes', 'tickets'];
-const TAB_IDS = { routes: 'tab-routes', tickets: 'tab-ticket' };
-const PANEL_IDS = { routes: 'panel-routes', tickets: 'panel-ticket' };
-let mode = 'routes';
-let routesBounds = null;    // what Route view was showing, so switching back can reframe it
-let ticketBounds = null;
-
-function setMode(next, options) {
-    if (MODES.indexOf(next) === -1) return;
-    mode = next;
-
-    MODES.forEach((m) => {
-        const selected = m === mode;
-        const tab = $(TAB_IDS[m]);
-        tab.setAttribute('aria-selected', String(selected));
-        tab.tabIndex = selected ? 0 : -1;
-        $(PANEL_IDS[m]).hidden = !selected;
-    });
-    sheet.dataset.mode = mode;
-
-    // Each mode keeps its own layers; only the active mode's are on the map
-    if (mode === 'tickets') {
-        [linesLayer, stopsLayer, busesLayer, nearbyLayer].forEach((l) => map.removeLayer(l));
-        ticketLayer.addTo(map);
-    } else {
-        map.removeLayer(ticketLayer);
-        [linesLayer, stopsLayer, busesLayer].forEach((l) => l.addTo(map));
-        if (nearbyLayer.getLayers().length) nearbyLayer.addTo(map);
-        if (activeRoute) fetchLiveBuses();
-    }
-
-    if (options && options.expand) {
-        sheet.classList.remove('is-collapsed');
-        sheetToggle.setAttribute('aria-expanded', 'true');
-    }
-
-    // Let the sheet settle at its new height, then frame what this mode was showing
-    setTimeout(() => fitTo(mode === 'tickets' ? ticketBounds : routesBounds), 60);
-}
-
-MODES.forEach((m, index) => {
-    const tab = $(TAB_IDS[m]);
-    tab.addEventListener('click', () => setMode(m, { expand: true }));
-    tab.addEventListener('keydown', (event) => {
-        let target = null;
-        if (event.key === 'ArrowRight') target = (index + 1) % MODES.length;
-        else if (event.key === 'ArrowLeft') target = (index + MODES.length - 1) % MODES.length;
-        else if (event.key === 'Home') target = 0;
-        else if (event.key === 'End') target = MODES.length - 1;
-        if (target === null) return;
-        event.preventDefault();
-        setMode(MODES[target], { expand: true });
-        $(TAB_IDS[MODES[target]]).focus();
-    });
+    if (!document.hidden && activeRoute) fetchLiveBuses();
 });
 
 // =========================================
@@ -1022,14 +520,15 @@ function buildStopIndex() {
     stopList = Array.from(stopIndex.values());
 }
 
-// Best matches first: name starts with the text, then a word starts with it, then anywhere
+// Best matches first: name starts with the text, then a word starts with it, then anywhere.
+// With "Only show wheelchair accessible stops" ticked, other stops are left out.
 function searchStops(query, limit) {
     const text = normalise(query).trim();
     if (text.length < 2) return [];
     const tokens = text.split(/\s+/);
     const scored = [];
 
-    for (const stop of stopList) {
+    for (const stop of usableStops()) {
         if (!tokens.every((t) => stop.search.includes(t))) continue;
         let rank = 2;
         if (stop.search.startsWith(text)) rank = 0;
@@ -1041,230 +540,6 @@ function searchStops(query, limit) {
     return scored.slice(0, limit).map((x) => x.stop);
 }
 
-// =========================================
-//  Stop picker (accessible combobox)
-// =========================================
-
-function createStopPicker(inputId, listId, onChange) {
-    const input = $(inputId);
-    const list = $(listId);
-    let selected = null;
-    let results = [];
-    let active = -1;
-
-    function close() {
-        list.hidden = true;
-        input.setAttribute('aria-expanded', 'false');
-        input.removeAttribute('aria-activedescendant');
-        active = -1;
-    }
-
-    function highlight(index) {
-        active = index;
-        Array.from(list.children).forEach((li, i) => li.setAttribute('aria-selected', String(i === active)));
-        if (active >= 0) {
-            input.setAttribute('aria-activedescendant', list.children[active].id);
-            list.children[active].scrollIntoView({ block: 'nearest' });
-        } else {
-            input.removeAttribute('aria-activedescendant');
-        }
-    }
-
-    function open() {
-        list.innerHTML = '';
-        if (input.value.trim().length < 2) { close(); return; }
-
-        results = searchStops(input.value, 6);
-        if (results.length === 0) {
-            const li = document.createElement('li');
-            li.className = 'picker-empty';
-            li.textContent = 'No stops found';
-            list.appendChild(li);
-        }
-        results.forEach((stop, i) => {
-            const li = document.createElement('li');
-            li.id = listId + '-' + i;
-            li.setAttribute('role', 'option');
-            li.setAttribute('aria-selected', 'false');
-            li.textContent = stop.name;
-            const small = document.createElement('small');
-            const routeCount = stop.hits.length / 2;
-            small.textContent = 'Stop ' + stop.id + ' · ' + routeCount + (routeCount === 1 ? ' route' : ' routes');
-            li.appendChild(small);
-            li.addEventListener('click', () => choose(stop));
-            list.appendChild(li);
-        });
-        list.hidden = false;
-        input.setAttribute('aria-expanded', 'true');
-        active = -1;
-    }
-
-    function choose(stop) {
-        selected = stop;
-        input.value = stop ? stop.name : '';
-        close();
-        onChange(selected);
-    }
-
-    // Keep focus in the input while tapping a result
-    list.addEventListener('mousedown', (event) => event.preventDefault());
-
-    input.addEventListener('input', () => {
-        if (selected) { selected = null; onChange(null); }
-        open();
-    });
-
-    input.addEventListener('keydown', (event) => {
-        const optionCount = results.length;
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            if (list.hidden) open();
-            else if (optionCount) highlight((active + 1) % optionCount);
-        } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            if (optionCount) highlight((active - 1 + optionCount) % optionCount);
-        } else if (event.key === 'Enter') {
-            if (!list.hidden && optionCount) {
-                event.preventDefault();
-                choose(results[active >= 0 ? active : 0]);
-            }
-        } else if (event.key === 'Escape') {
-            close();
-        }
-    });
-
-    input.addEventListener('blur', close);
-
-    return {
-        get: () => selected,
-        set: (stop) => choose(stop),
-        silent: (stop) => { selected = stop; input.value = stop ? stop.name : ''; close(); }
-    };
-}
-
-// =========================================
-//  Finding buses between two stops
-// =========================================
-
-const MAX_BUSES = 30;
-let buses = [];            // [{ feature, fromPos, toPos, between }]
-let chosenBus = null;
-
-// Routes that visit From and then To (in that order), one per route name, shortest trip first
-function findBuses(from, to) {
-    const fromPos = new Map();   // route index -> where it visits From
-    for (let i = 0; i < from.hits.length; i += 2) {
-        if (!fromPos.has(from.hits[i])) fromPos.set(from.hits[i], from.hits[i + 1]);
-    }
-
-    const byName = new Map();
-    for (let i = 0; i < to.hits.length; i += 2) {
-        const routeIdx = to.hits[i];
-        const toPosition = to.hits[i + 1];
-        const fromPosition = fromPos.get(routeIdx);
-        if (fromPosition === undefined || fromPosition >= toPosition) continue;
-
-        const feature = allRoutes[routeIdx];
-        const between = toPosition - fromPosition;
-        const key = feature.properties.display_name || feature.properties.route_id;
-        const existing = byName.get(key);
-        if (!existing || between < existing.between) {
-            byName.set(key, { feature: feature, fromPos: fromPosition, toPos: toPosition, between: between });
-        }
-    }
-
-    return Array.from(byName.values()).sort((a, b) =>
-        a.between - b.between ||
-        String(a.feature.properties.short_name).localeCompare(String(b.feature.properties.short_name), undefined, { numeric: true }));
-}
-
-// =========================================
-//  Buy a ticket panel
-// =========================================
-
-const fromPicker = createStopPicker('from-input', 'from-results', refreshTicketSearch);
-const toPicker = createStopPicker('to-input', 'to-results', refreshTicketSearch);
-
-function refreshTicketSearch() {
-    chosenBus = null;
-    buses = [];
-    const from = fromPicker.get();
-    const to = toPicker.get();
-    const hint = $('ticket-hint');
-
-    if (from && to && from.id === to.id) {
-        hint.textContent = 'Pick two different stops.';
-    } else if (from && to) {
-        buses = findBuses(from, to);
-        if (buses.length === 0) {
-            hint.textContent = 'No direct bus found from ' + from.name + ' to ' + to.name +
-                '. Try swapping the stops, or choose a nearby stop.';
-        } else {
-            hint.textContent = buses.length + (buses.length === 1 ? ' bus goes' : ' buses go') +
-                ' from ' + from.name + ' to ' + to.name + '. Pick one.' +
-                (buses.length > MAX_BUSES ? ' Showing the ' + MAX_BUSES + ' shortest trips.' : '');
-        }
-    } else {
-        hint.textContent = 'Search for where you are starting and where you are going.';
-    }
-
-    buses = buses.slice(0, MAX_BUSES);
-    renderBusList();
-    drawTicketMap();
-}
-
-function renderBusList() {
-    const listEl = $('bus-list');
-    listEl.innerHTML = '';
-
-    buses.forEach((bus) => {
-        const p = bus.feature.properties;
-        const li = document.createElement('li');
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'bus-row';
-        button.setAttribute('aria-pressed', String(bus === chosenBus));
-
-        const badge = document.createElement('span');
-        badge.className = 'bus-badge' + (isCitylink(bus.feature) ? ' is-citylink' : '');
-        badge.textContent = p.short_name || '?';
-
-        const info = document.createElement('span');
-        info.className = 'bus-info';
-        const name = document.createElement('strong');
-        name.textContent = p.long_name || p.display_name || 'Bus route';
-        const detail = document.createElement('small');
-        detail.textContent = (p.agency_name || 'Unknown operator') + ' · ' +
-            bus.between + (bus.between === 1 ? ' stop' : ' stops');
-        info.appendChild(name);
-        info.appendChild(detail);
-
-        button.appendChild(badge);
-        button.appendChild(info);
-        button.addEventListener('click', () => chooseBus(bus));
-        li.appendChild(button);
-        listEl.appendChild(li);
-    });
-
-    $('ticket-continue').disabled = !chosenBus;
-}
-
-function chooseBus(bus) {
-    chosenBus = bus;
-    Array.from($('bus-list').querySelectorAll('.bus-row')).forEach((row, i) => {
-        row.setAttribute('aria-pressed', String(buses[i] === bus));
-    });
-    $('ticket-continue').disabled = false;
-    drawTicketMap();
-}
-
-$('swap-btn').addEventListener('click', () => {
-    const from = fromPicker.get();
-    const to = toPicker.get();
-    fromPicker.silent(to);
-    toPicker.silent(from);
-    refreshTicketSearch();
-});
 
 // The part of a route line between two stops (falls back to joining the stops)
 function segmentLatLngs(feature, fromPos, toPos) {
@@ -1494,112 +769,6 @@ function endpointMarker(stop, color, label) {
     return marker;
 }
 
-let ticketDrawToken = 0;
-
-function drawTicketMap() {
-    const token = ++ticketDrawToken;
-
-    // The chosen bus's line may not be loaded yet: draw what we have now, then again when it arrives
-    if (chosenBus && !geoLoaded.has(chosenBus.feature.properties.region)) {
-        ensureGeo([chosenBus.feature.properties.region])
-            .then(() => { if (token === ticketDrawToken) drawTicketMap(); })
-            .catch((error) => console.warn('Route line unavailable:', error));
-    }
-
-    ticketLayer.clearLayers();
-    ticketBounds = null;
-    const from = fromPicker.get();
-    const to = toPicker.get();
-    const points = [];
-
-    // Faint lines for every matching bus
-    buses.forEach((bus) => {
-        if (bus === chosenBus || !bus.feature.geometry) return;
-        L.geoJSON(bus.feature, {
-            style: { color: isCitylink(bus.feature) ? COLORS.citylink : COLORS.route, weight: 3, opacity: 0.3 }
-        }).addTo(ticketLayer);
-    });
-
-    // The chosen bus: whole line softly, the part you ride strongly
-    if (chosenBus) {
-        const color = isCitylink(chosenBus.feature) ? COLORS.citylink : COLORS.route;
-        if (chosenBus.feature.geometry) {
-            L.geoJSON(chosenBus.feature, { style: { color: color, weight: 5, opacity: 0.35 } }).addTo(ticketLayer);
-        }
-        const ride = L.polyline(segmentLatLngs(chosenBus.feature, chosenBus.fromPos, chosenBus.toPos),
-            { color: color, weight: 7, opacity: 1 }).addTo(ticketLayer);
-        ticketBounds = ride.getBounds();
-    }
-
-    if (from) { endpointMarker(from, COLORS.from, 'From').addTo(ticketLayer); points.push([from.lat, from.lon]); }
-    if (to) { endpointMarker(to, COLORS.to, 'To').addTo(ticketLayer); points.push([to.lat, to.lon]); }
-
-    if (!ticketBounds && points.length > 0) ticketBounds = L.latLngBounds(points);
-    if (ticketBounds) fitTo(ticketBounds, { maxZoom: 15 });
-}
-
-// =========================================
-//  Hand-off to the tickets page
-// =========================================
-
-const DRAFT_KEY = 'hop.ticketDraft';
-
-$('ticket-continue').addEventListener('click', () => {
-    const from = fromPicker.get();
-    const to = toPicker.get();
-    if (!chosenBus || !from || !to) return;
-
-    const p = chosenBus.feature.properties;
-    const draft = {
-        routeId: String(p.route_id),
-        shortName: String(p.short_name || ''),
-        longName: String(p.long_name || ''),
-        agency: String(p.agency_name || ''),
-        fromId: from.id,
-        fromName: from.name,
-        toId: to.id,
-        toName: to.name,
-        stopsBetween: chosenBus.between
-    };
-
-    // The tickets page re-checks this; nothing here is trusted as a purchase
-    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (e) { /* private mode: still go on */ }
-    window.location.href = '../tickets/tickets.html';
-});
-
-// Opening map.html?mode=tickets starts on the ticket tab (and restores the last journey).
-// Opening map.html?accessible=1 (the menu's "Accessible Stops & Routes") starts with
-// "Only show wheelchair accessible stops" ticked, so From and To list accessible stops.
-function startInRequestedMode() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('accessible') === '1') {
-        $('filter-accessible').checked = true;
-        setMode('routes', { expand: true });
-    }
-
-    const requested = params.get('mode');
-    if (requested !== 'tickets') return;
-
-    setMode('tickets', { expand: true });
-
-    let draft = null;
-    try { draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) { draft = null; }
-    if (!draft || typeof draft !== 'object') { refreshTicketSearch(); return; }
-
-    const from = stopIndex.get(String(draft.fromId));
-    const to = stopIndex.get(String(draft.toId));
-    if (!from || !to) { refreshTicketSearch(); return; }
-
-    fromPicker.silent(from);
-    toPicker.silent(to);
-    refreshTicketSearch();
-    const match = buses.find((b) => String(b.feature.properties.route_id) === String(draft.routeId));
-    if (match) chooseBus(match);
-}
-
-// Starting hint
-$('ticket-hint').textContent = 'Search for where you are starting and where you are going.';
-
 // =========================================
 //  My location
 //  Off until the person says yes. If the browser blocks it, everything that
@@ -1676,10 +845,9 @@ function updateLocationUI() {
 }
 
 function refreshLocationFeatures() {
-    const showing = locActive() && loc.fix;
     drawYou();
     updateNearby();
-    $('use-location-btn').hidden = !(showing && stopList.length);
+    onLocationChanged();
 }
 
 function startWatch() {
@@ -1762,10 +930,11 @@ function formatDistance(m) {
     return (m / 1000).toFixed(1) + ' km';
 }
 
-function nearestStops(lat, lon, count, maxM) {
+function nearestStops(lat, lon, count, maxM, list) {
+    const pool = list || stopList;
     const found = [];
-    for (let i = 0; i < stopList.length; i++) {
-        const s = stopList[i];
+    for (let i = 0; i < pool.length; i++) {
+        const s = pool[i];
         // cheap box test first so thousands of stops stay fast
         if (Math.abs(s.lat - lat) > 0.1 || Math.abs(s.lon - lon) > 0.15) continue;
         const d = distanceM(lat, lon, s.lat, s.lon);
@@ -1794,7 +963,7 @@ function updateNearby() {
     if (nearbyBuiltAt && distanceM(nearbyBuiltAt.lat, nearbyBuiltAt.lon, loc.fix.lat, loc.fix.lon) < 25 && !box.hidden) return;
     nearbyBuiltAt = { lat: loc.fix.lat, lon: loc.fix.lon };
 
-    const near = nearestStops(loc.fix.lat, loc.fix.lon, NEARBY_COUNT, NEARBY_MAX_M);
+    const near = nearestStops(loc.fix.lat, loc.fix.lon, NEARBY_COUNT, NEARBY_MAX_M, usableStops());
     list.innerHTML = '';
     nearbyLayer.clearLayers();
     box.hidden = false;
@@ -1809,7 +978,7 @@ function updateNearby() {
 
     near.forEach((item) => {
         const marker = L.circleMarker([item.stop.lat, item.stop.lon], {
-            radius: 7, color: '#ffffff', weight: 2, fillColor: COLORS.route, fillOpacity: 1
+            radius: 7, color: '#ffffff', weight: 2, fillColor: stopColor(item.stop), fillOpacity: 1
         });
         bindStopCard(marker, item.stop, [formatDistance(item.d) + ' away']);
         nearbyLayer.addLayer(marker);
@@ -1832,23 +1001,9 @@ function updateNearby() {
         list.appendChild(li);
     });
 
-    if (mode === 'routes') nearbyLayer.addTo(map);
+    nearbyLayer.addTo(map);
 }
 
-// "Use my nearest stop" in Buy a ticket
-$('use-location-btn').addEventListener('click', () => {
-    if (!(locActive() && loc.fix)) return;
-    const nearest = nearestStops(loc.fix.lat, loc.fix.lon, 1, 50000)[0];
-    if (!nearest) {
-        $('ticket-hint').textContent = 'No bus stops found near you.';
-        return;
-    }
-    fromPicker.set(nearest.stop);
-    if (!toPicker.get()) {
-        $('ticket-hint').textContent = 'Starting from ' + nearest.stop.name + ', about ' +
-            formatDistance(nearest.d) + ' from you. Now choose where you are going.';
-    }
-});
 
 // ----- Round button under the zoom buttons -----
 
@@ -1957,6 +1112,778 @@ function initLocation() {
         start();
     }
 }
+
+
+// =========================================
+//  Search bar and journeys
+//  One search bar finds places, bus stops and routes. A stop or place becomes your destination, and
+//  the panel lists the buses that get you there from where you are (or where you say you are).
+//  A route number just shows that route and its live buses.
+// =========================================
+
+let currentView = 'idle';      // 'idle' | 'journey' | 'route'
+const trip = { dest: null, origin: null };   // each is { kind: 'stop'|'place'|'location'|'pin', name, lat, lon, stop? }
+let options = [];              // the buses for this journey, best first
+let chosenKey = null;          // which one is shown on the map
+let autoChosen = true;         // true until the person taps one themselves
+let promptOpen = false;        // the "where are you starting from?" box
+let planToken = 0;             // lets an old plan notice it has been replaced
+let routeToken = 0;
+let pinMode = false;           // waiting for a tap on the map
+let lastNowSeconds = Math.floor(Date.now() / 1000);
+
+const endpointLayer = L.layerGroup().addTo(map);   // your start and destination
+
+function expandSheet() {
+    sheet.classList.remove('is-collapsed');
+    sheetToggle.setAttribute('aria-expanded', 'true');
+}
+
+function setView(view) {
+    currentView = view;
+    sheet.dataset.view = view;
+    ['idle', 'journey', 'route'].forEach((v) => { $('view-' + v).hidden = v !== view; });
+    if (view !== 'idle') expandSheet();
+    updateSearchClear();
+}
+
+function setHint(text) {
+    $('journey-hint').textContent = text || '';
+}
+
+// ---------- Places (Photon, built on OpenStreetMap) ----------
+
+const placeCache = new Map();
+
+async function searchPlaces(query, signal) {
+    if (!CONFIG.PLACES_URL) return [];
+    const key = HopJourney.normalise(query).trim();
+    if (placeCache.has(key)) return placeCache.get(key);
+    const url = CONFIG.PLACES_URL + '?q=' + encodeURIComponent(query) + '&limit=6&lang=en&bbox=' + CONFIG.PLACES_BBOX;
+    const response = await fetch(url, { signal: signal });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const places = HopJourney.parsePlaces(await response.json(), 4);
+    placeCache.set(key, places);
+    return places;
+}
+
+// ---------- A search box that suggests stops, routes and places ----------
+// config: { places: true/false, routes: true/false, onChoose(item), keepText: true/false }
+
+function createCombobox(input, list, config) {
+    let items = [];
+    let active = -1;
+    let token = 0;
+    let timer = null;
+    let controller = null;
+    let status = '';
+
+    function close() {
+        list.hidden = true;
+        input.setAttribute('aria-expanded', 'false');
+        input.removeAttribute('aria-activedescendant');
+        active = -1;
+    }
+
+    function highlight(index) {
+        active = index;
+        Array.from(list.children).forEach((li, i) => li.setAttribute('aria-selected', String(i === active)));
+        if (active >= 0 && list.children[active]) {
+            input.setAttribute('aria-activedescendant', list.children[active].id);
+            list.children[active].scrollIntoView({ block: 'nearest' });
+        } else {
+            input.removeAttribute('aria-activedescendant');
+        }
+    }
+
+    function render() {
+        list.innerHTML = '';
+        items.forEach((item, i) => {
+            const li = document.createElement('li');
+            li.id = list.id + '-' + i;
+            li.className = 'result result-' + item.type;
+            li.setAttribute('role', 'option');
+            li.setAttribute('aria-selected', 'false');
+            const title = document.createElement('span');
+            title.className = 'result-title';
+            title.textContent = item.title;
+            const sub = document.createElement('small');
+            sub.textContent = item.sub;
+            li.appendChild(title);
+            li.appendChild(sub);
+            li.addEventListener('click', () => choose(item));
+            list.appendChild(li);
+        });
+        if (status) {
+            const note = document.createElement('li');
+            note.className = 'picker-empty';
+            note.textContent = status;
+            list.appendChild(note);
+        }
+        list.hidden = list.children.length === 0;
+        input.setAttribute('aria-expanded', String(!list.hidden));
+        active = -1;
+    }
+
+    function localItems(query) {
+        const out = [];
+        const seen = new Set();
+        searchStops(query, 14).forEach((stop) => {
+            if (seen.has(stop.name) || out.length >= 4) return;   // same-named stops are the two sides of a road
+            seen.add(stop.name);
+            const n = stop.hits.length / 2;
+            out.push({ type: 'stop', title: stop.name, sub: 'Bus stop · ' + n + (n === 1 ? ' route' : ' routes'), stop: stop });
+        });
+        return out;
+    }
+
+    function routeItems(query) {
+        return HopJourney.searchRoutes(allRoutes, query, 3).map((feature) => ({
+            type: 'route',
+            title: 'Route ' + feature.properties.short_name,
+            sub: [feature.properties.long_name, feature.properties.agency_name].filter(Boolean).join(' · '),
+            feature: feature
+        }));
+    }
+
+    function run() {
+        clearTimeout(timer);
+        if (controller) controller.abort();
+        const query = input.value.trim();
+        const mine = ++token;
+        status = '';
+        if (query.length < 2) { items = []; render(); return; }
+
+        const local = localItems(query);
+        const routes = config.routes ? routeItems(query) : [];
+        items = local.concat(routes);
+        render();
+
+        if (!config.places || query.length < 3 || !CONFIG.PLACES_URL) return;
+        status = 'Searching places…';
+        render();
+        timer = setTimeout(async () => {
+            controller = new AbortController();
+            try {
+                const places = await searchPlaces(query, controller.signal);
+                if (mine !== token) return;
+                status = '';
+                const placeItems = places.map((p) => ({
+                    type: 'place', title: p.name, sub: p.detail || 'Place', lat: p.lat, lon: p.lon
+                }));
+                // places go after the stops, before the routes
+                items = local.concat(placeItems, routes);
+                if (!items.length) status = 'Nothing found. Try another spelling or a nearby place.';
+                render();
+            } catch (error) {
+                if (mine !== token || (error && error.name === 'AbortError')) return;
+                console.warn('Place search unavailable:', error);
+                status = items.length ? '' : "Place search isn't available right now. You can still search a stop or route.";
+                render();
+            }
+        }, 350);
+    }
+
+    function choose(item) {
+        clearTimeout(timer);
+        if (controller) controller.abort();
+        token++;
+        close();
+        input.value = config.keepText === false ? '' : item.title;
+        input.blur();
+        config.onChoose(item);
+    }
+
+    // Keep focus in the input while tapping a result
+    list.addEventListener('mousedown', (event) => event.preventDefault());
+
+    input.addEventListener('input', run);
+    input.addEventListener('focus', () => { if (input.value.trim().length >= 2) run(); });
+    input.addEventListener('blur', () => { setTimeout(close, 120); });
+    input.addEventListener('keydown', (event) => {
+        const count = items.length;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (list.hidden) run();
+            else if (count) highlight((active + 1) % count);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (count) highlight((active - 1 + count) % count);
+        } else if (event.key === 'Enter') {
+            if (!list.hidden && count) {
+                event.preventDefault();
+                choose(items[active >= 0 ? active : 0]);
+            }
+        } else if (event.key === 'Escape') {
+            close();
+        }
+    });
+
+    return { close: close };
+}
+
+// ---------- Choosing a destination, a route, or a starting point ----------
+
+function updateSearchClear() {
+    $('search-clear').hidden = !($('search-input').value || currentView !== 'idle');
+}
+
+function onSearchChoose(item) {
+    if (item.type === 'stop') {
+        setDestination({ kind: 'stop', name: item.stop.name, lat: item.stop.lat, lon: item.stop.lon, stop: item.stop });
+    } else if (item.type === 'place') {
+        setDestination({ kind: 'place', name: item.title, lat: item.lat, lon: item.lon });
+    } else if (item.type === 'route') {
+        showRoute(item.feature);
+    }
+}
+
+function onOriginChoose(item) {
+    if (item.type === 'stop') {
+        setOrigin({ kind: 'stop', name: item.stop.name, lat: item.stop.lat, lon: item.stop.lon, stop: item.stop });
+    } else if (item.type === 'place') {
+        setOrigin({ kind: 'place', name: item.title, lat: item.lat, lon: item.lon });
+    }
+}
+
+createCombobox($('search-input'), $('search-results'), { places: true, routes: true, onChoose: onSearchChoose });
+createCombobox($('origin-input'), $('origin-results'), { places: true, routes: false, keepText: false, onChoose: onOriginChoose });
+
+$('search-input').addEventListener('input', updateSearchClear);
+
+function clearAll() {
+    routeToken++;
+    planToken++;
+    trip.dest = null;
+    trip.origin = null;
+    options = [];
+    chosenKey = null;
+    autoChosen = true;
+    promptOpen = false;
+    pinMode = false;
+    document.body.classList.remove('is-pinning');
+    $('search-input').value = '';
+    $('origin-input').value = '';
+    journeyLayer.clearLayers();
+    endpointLayer.clearLayers();
+    busesLayer.clearLayers();
+    activeRoute = null;
+    setLiveStatus('');
+    setHint('');
+    $('option-list').innerHTML = '';
+    setView('idle');
+}
+
+$('search-clear').addEventListener('click', () => {
+    clearAll();
+    $('search-input').focus();
+});
+$('dest-clear').addEventListener('click', clearAll);
+$('route-clear').addEventListener('click', clearAll);
+
+function locationOrigin() {
+    return { kind: 'location', name: 'Your location', lat: loc.fix.lat, lon: loc.fix.lon };
+}
+
+function setDestination(dest) {
+    routeToken++;
+    journeyLayer.clearLayers();
+    busesLayer.clearLayers();
+    activeRoute = null;
+    setLiveStatus('');
+    trip.dest = dest;
+    $('search-input').value = dest.name;
+    autoChosen = true;
+    if (!trip.origin && locActive() && loc.fix) trip.origin = locationOrigin();
+    setView('journey');
+    runPlan();
+}
+
+function setOrigin(origin) {
+    trip.origin = origin;
+    promptOpen = false;
+    pinMode = false;
+    document.body.classList.remove('is-pinning');
+    $('origin-input').value = '';
+    autoChosen = true;
+    if (currentView !== 'journey') setView('journey');
+    expandSheet();
+    runPlan();
+}
+
+// ---------- Where are you starting from? ----------
+
+function updatePoints() {
+    const origin = trip.origin;
+    $('dest-name').textContent = trip.dest ? trip.dest.name : '';
+    $('origin-name').textContent = origin ? origin.name : 'Choose a starting point';
+    $('origin-change').hidden = !origin;
+
+    const showPrompt = !origin || promptOpen;
+    $('origin-prompt').hidden = !showPrompt;
+    const finding = locActive() && !loc.fix;
+    $('origin-prompt-title').textContent = finding
+        ? 'Finding your location… or choose where you are:'
+        : (origin ? 'Choose a different starting point:' : 'Where are you starting from?');
+    $('origin-use-location').hidden = Boolean(origin && origin.kind === 'location');
+}
+
+$('origin-change').addEventListener('click', () => {
+    promptOpen = true;
+    updatePoints();
+    $('origin-input').focus();
+});
+
+$('origin-use-location').addEventListener('click', () => {
+    if (!locUsable()) { showToast(locDisabledReason()); return; }
+    if (!loc.on) turnOn();
+    if (locActive() && loc.fix) setOrigin(locationOrigin());
+    else { promptOpen = false; updatePoints(); setHint('Finding your location…'); }
+});
+
+$('origin-drop-pin').addEventListener('click', () => {
+    pinMode = true;
+    document.body.classList.add('is-pinning');
+    sheet.classList.add('is-collapsed');
+    sheetToggle.setAttribute('aria-expanded', 'false');
+    showToast('Tap the map where you are, or close to it.');
+});
+
+map.on('click', (event) => {
+    if (!pinMode) return;
+    const near = nearestStops(event.latlng.lat, event.latlng.lng, 1, 1000)[0];
+    setOrigin({
+        kind: 'pin',
+        name: near ? 'Pin near ' + near.stop.name : 'Dropped pin',
+        lat: event.latlng.lat,
+        lon: event.latlng.lng
+    });
+});
+
+sheetToggle.addEventListener('click', () => {
+    if (pinMode) { pinMode = false; document.body.classList.remove('is-pinning'); }
+});
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && pinMode) {
+        pinMode = false;
+        document.body.classList.remove('is-pinning');
+        expandSheet();
+    }
+});
+
+// Called whenever your position is found, lost or changes
+function onLocationChanged() {
+    if (!trip.dest || currentView !== 'journey') return;
+    const have = locActive() && loc.fix;
+    if (!trip.origin) {
+        if (have) setOrigin(locationOrigin()); else updatePoints();
+        return;
+    }
+    if (trip.origin.kind !== 'location') return;
+    if (!have) { trip.origin = null; runPlan(); return; }
+    if (HopJourney.distanceM(trip.origin.lat, trip.origin.lon, loc.fix.lat, loc.fix.lon) > 200) {
+        trip.origin = locationOrigin();
+        runPlan();
+    }
+}
+
+// ---------- Working out the journey ----------
+
+async function runPlan() {
+    const token = ++planToken;
+    const keepKey = autoChosen ? null : chosenKey;
+    journeyLayer.clearLayers();
+    busesLayer.clearLayers();
+    activeRoute = null;
+    setLiveStatus('');
+    options = [];
+    chosenKey = null;
+    $('option-list').innerHTML = '';
+    setHint('');
+    updatePoints();
+    drawEndpoints();
+    if (!trip.dest) return;
+
+    if (!trip.origin) {
+        fitTo(L.latLngBounds([[trip.dest.lat, trip.dest.lon], [trip.dest.lat, trip.dest.lon]]), { maxZoom: 15 });
+        return;
+    }
+
+    // With the accessible filter on, you can only get on and off at accessible stops
+    const pool = usableStops();
+    const access = accessibleOnly();
+    const stopsWord = access ? 'wheelchair accessible bus stops' : 'bus stops';
+    const origins = HopJourney.stopsAround(pool, trip.origin, { near: 600, far: 3000, count: 40 });
+    const dests = HopJourney.stopsAround(pool, trip.dest, { near: 600, far: 2500, count: 40 });
+
+    if (!origins.length) {
+        setHint('There are no ' + stopsWord + ' within 3 km of ' + trip.origin.name + '. Try a different starting point.');
+        promptOpen = true;
+        updatePoints();
+        return;
+    }
+    if (!dests.length) {
+        setHint('There are no ' + stopsWord + ' within 2.5 km of ' + trip.dest.name + '. Try a place closer to a bus route.');
+        return;
+    }
+
+    options = HopJourney.planJourneys({ routes: allRoutes, stopIndex: stopIndex, origins: origins, dests: dests, max: 6 });
+    if (!options.length) {
+        setHint('No direct bus found from ' + trip.origin.name + ' to ' + trip.dest.name +
+            (access ? ' that stops at wheelchair accessible stops at both ends' : '') +
+            '. Try a nearby stop, or a different starting point.');
+        promptOpen = true;
+        updatePoints();
+        fitJourneyPoints();
+        return;
+    }
+
+    // Show them straight away from the timetable data, then add live times
+    renderOptions();
+    const keep = keepKey && options.find((o) => o.key === keepKey);
+    chooseOption(keep || options[0], false, true);
+    ensureGeo(options.map((o) => o.feature.properties.region))
+        .then(() => { if (token === planToken) redrawJourney(false); })
+        .catch((error) => console.warn('Route lines unavailable:', error));
+    refreshLive(token);
+}
+
+function fitJourneyPoints() {
+    const points = [];
+    if (trip.origin) points.push([trip.origin.lat, trip.origin.lon]);
+    if (trip.dest) points.push([trip.dest.lat, trip.dest.lon]);
+    if (points.length) fitTo(L.latLngBounds(points), { maxZoom: 15 });
+}
+
+// ---------- Live arrivals for the buses on offer ----------
+
+async function getStopTimes(stopId) {
+    const cached = stopTimesCache.get(stopId);
+    if (cached && Date.now() - cached.time < STOP_TIMES_FRESH_MS) return cached.data;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+        const response = await fetch(CONFIG.STOP_TIMES_URL + '?stop_id=' + encodeURIComponent(stopId), { signal: controller.signal });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        if (!data || !Array.isArray(data.arrivals)) throw new Error('Unexpected reply');
+        stopTimesCache.set(stopId, { time: Date.now(), data: data });
+        return data;
+    } catch (error) {
+        console.warn('Stop times unavailable:', error);
+        return null;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function refreshLive(token) {
+    if (!options.length) return;
+    if (!CONFIG.STOP_TIMES_URL) {
+        setHint('Live times are not available here, so these are timetable estimates and do not include waiting for the bus.');
+        return;
+    }
+
+    const stopIds = Array.from(new Set(options.map((o) => o.fromStop.id)));
+    const results = await Promise.all(stopIds.map(getStopTimes));
+    if (token !== planToken) return;
+
+    const byStop = {};
+    let serverNow = 0;
+    stopIds.forEach((id, i) => {
+        if (results[i]) { byStop[id] = results[i]; serverNow = serverNow || results[i].now || 0; }
+    });
+    lastNowSeconds = serverNow || Math.floor(Date.now() / 1000);
+
+    HopJourney.applyLive(options, byStop, lastNowSeconds);
+    HopJourney.annotate(options);
+
+    const anyLive = options.some((o) => o.live);
+    setHint(anyLive
+        ? ''
+        : 'Live times are not available right now, so these are timetable estimates and do not include waiting for the bus.');
+
+    renderOptions();
+    // Keep what they picked; otherwise follow the quickest
+    if (autoChosen && options[0] && options[0].key !== chosenKey) chooseOption(options[0], false, false);
+    else updatePressed();
+}
+
+setInterval(() => {
+    if (!document.hidden && currentView === 'journey' && options.length) refreshLive(planToken);
+}, 30000);
+
+// ---------- The list of buses ----------
+
+function clockTime(minutesFromNow) {
+    return new Date(Date.now() + minutesFromNow * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function delayText(minutes) {
+    if (minutes === null || minutes === undefined) return '';
+    if (minutes === 0) return 'on time';
+    return minutes > 0 ? minutes + ' min late' : Math.abs(minutes) + ' min early';
+}
+
+function renderOptions() {
+    const list = $('option-list');
+    list.innerHTML = '';
+    const anyLive = options.some((o) => o.live);
+
+    options.forEach((opt, index) => {
+        const p = opt.feature.properties;
+        const li = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'option-card' + (opt.late ? ' is-late' : '');
+        button.setAttribute('aria-pressed', String(opt.key === chosenKey));
+
+        button.appendChild(routeBadge(opt.feature));
+
+        const info = document.createElement('span');
+        info.className = 'option-info';
+
+        const title = document.createElement('strong');
+        title.textContent = p.long_name || p.display_name || 'Bus route';
+        info.appendChild(title);
+
+        const when = document.createElement('small');
+        when.className = 'option-when';
+        if (opt.live) {
+            const due = Math.max(0, Math.round(opt.waitMin + opt.walkToMin));
+            when.textContent = 'Next bus ' + (due <= 1 ? 'due now' : 'in ' + HopJourney.formatMinutes(due));
+            const d = delayText(opt.delayMin);
+            if (d) {
+                const chip = document.createElement('span');
+                chip.className = 'delay-chip ' + (opt.late ? 'is-late' : (opt.delayMin < 0 ? 'is-early' : 'is-ontime'));
+                chip.textContent = d;
+                when.appendChild(chip);
+            }
+        } else {
+            when.textContent = 'No live time for this bus';
+        }
+        info.appendChild(when);
+
+        const board = document.createElement('small');
+        board.textContent = 'Board at ' + opt.fromStop.name + ' · ' + opt.walkToMin + ' min walk';
+        info.appendChild(board);
+
+        const ride = document.createElement('small');
+        ride.textContent = opt.stopsBetween + (opt.stopsBetween === 1 ? ' stop' : ' stops') +
+            ' · about ' + opt.rideMin + ' min · off at ' + opt.toStop.name +
+            (opt.walkFromMin ? ' · ' + opt.walkFromMin + ' min walk' : '');
+        info.appendChild(ride);
+
+        if (opt.advice) {
+            const advice = document.createElement('small');
+            advice.className = 'option-advice';
+            advice.textContent = opt.advice;
+            info.appendChild(advice);
+        }
+        button.appendChild(info);
+
+        const total = document.createElement('span');
+        total.className = 'option-total';
+        const minutes = document.createElement('strong');
+        minutes.textContent = HopJourney.formatMinutes(opt.live ? opt.etaMin : opt.baseMin);
+        const note = document.createElement('small');
+        note.textContent = opt.live ? 'arrive ' + clockTime(opt.etaMin) : 'without waiting';
+        total.appendChild(minutes);
+        total.appendChild(note);
+        if (anyLive && index === 0 && options.length > 1) {
+            const best = document.createElement('span');
+            best.className = 'best-chip';
+            best.textContent = 'Quickest';
+            total.appendChild(best);
+        }
+        button.appendChild(total);
+
+        button.addEventListener('click', () => chooseOption(opt, true));
+        li.appendChild(button);
+        list.appendChild(li);
+    });
+}
+
+function updatePressed() {
+    Array.from($('option-list').querySelectorAll('.option-card')).forEach((button, i) => {
+        if (options[i]) button.setAttribute('aria-pressed', String(options[i].key === chosenKey));
+    });
+}
+
+function chooseOption(opt, byUser, fit) {
+    chosenKey = opt.key;
+    if (byUser) autoChosen = false;
+    updatePressed();
+    redrawJourney(fit !== false);
+    activeRoute = opt.feature;
+    fetchLiveBuses();
+}
+
+// ---------- Drawing on the map ----------
+
+function pinIcon(kind) {
+    return L.divIcon({
+        className: 'pin-marker is-' + kind,
+        html: '<span></span>',
+        iconSize: [26, 34],
+        iconAnchor: [13, 34]
+    });
+}
+
+function drawEndpoints() {
+    endpointLayer.clearLayers();
+    if (trip.dest) {
+        L.marker([trip.dest.lat, trip.dest.lon], { icon: pinIcon('to'), keyboard: false, title: trip.dest.name }).addTo(endpointLayer);
+    }
+    const origin = trip.origin;
+    if (origin && origin.kind !== 'location') {
+        const marker = L.marker([origin.lat, origin.lon], {
+            icon: pinIcon('from'), keyboard: false, title: origin.name, draggable: origin.kind === 'pin'
+        }).addTo(endpointLayer);
+        if (origin.kind === 'pin') {
+            marker.on('dragend', () => {
+                const at = marker.getLatLng();
+                const near = nearestStops(at.lat, at.lng, 1, 1000)[0];
+                setOrigin({ kind: 'pin', name: near ? 'Pin near ' + near.stop.name : 'Dropped pin', lat: at.lat, lon: at.lng });
+            });
+        }
+    }
+}
+
+function walkLeg(from, to) {
+    L.polyline([[from.lat, from.lon], [to.lat, to.lon]], {
+        color: '#5a3d91', weight: 3, opacity: 0.9, dashArray: '2 7', interactive: false
+    }).addTo(journeyLayer);
+}
+
+function redrawJourney(fit) {
+    journeyLayer.clearLayers();
+
+    // The other buses, faintly
+    options.forEach((opt) => {
+        if (opt.key === chosenKey) return;
+        L.polyline(segmentLatLngs(opt.feature, opt.fromPos, opt.toPos), {
+            color: isCitylink(opt.feature) ? COLORS.citylink : COLORS.route, weight: 4, opacity: 0.3
+        }).addTo(journeyLayer);
+    });
+
+    const opt = options.find((o) => o.key === chosenKey);
+    if (!opt) return;
+
+    // The chosen bus: the whole line softly, the part you ride strongly
+    const color = isCitylink(opt.feature) ? COLORS.citylink : COLORS.route;
+    if (opt.feature.geometry) {
+        L.geoJSON(opt.feature, { style: { color: color, weight: 5, opacity: 0.3 } }).addTo(journeyLayer);
+    }
+    const ride = L.polyline(segmentLatLngs(opt.feature, opt.fromPos, opt.toPos), { color: color, weight: 7, opacity: 1 }).addTo(journeyLayer);
+
+    // Walking to the stop and from the stop
+    if (trip.origin) walkLeg(trip.origin, opt.fromStop);
+    if (trip.dest) walkLeg(opt.toStop, trip.dest);
+
+    endpointMarker(opt.fromStop, COLORS.from, 'Board').addTo(journeyLayer);
+    endpointMarker(opt.toStop, COLORS.to, 'Get off').addTo(journeyLayer);
+
+    if (fit) {
+        const bounds = ride.getBounds();
+        if (trip.origin) bounds.extend([trip.origin.lat, trip.origin.lon]);
+        if (trip.dest) bounds.extend([trip.dest.lat, trip.dest.lon]);
+        fitTo(bounds, { maxZoom: 16 });
+    }
+}
+
+// ---------- One route, picked from the search ----------
+
+async function showRoute(feature) {
+    const token = ++routeToken;
+    planToken++;
+    trip.dest = null;
+    trip.origin = null;
+    options = [];
+    chosenKey = null;
+    promptOpen = false;
+    endpointLayer.clearLayers();
+    journeyLayer.clearLayers();
+    busesLayer.clearLayers();
+
+    const p = feature.properties;
+    $('search-input').value = 'Route ' + p.short_name;
+    const slot = $('route-badge');
+    slot.innerHTML = '';
+    slot.appendChild(routeBadge(feature));
+    $('route-title').textContent = p.long_name || p.display_name;
+    $('route-sub').textContent = p.agency_name || '';
+    setView('route');
+
+    activeRoute = feature;
+    fetchLiveBuses();
+
+    // Both directions share a route id
+    const same = allRoutes.filter((f) => f.properties.route_id === p.route_id);
+    try {
+        await ensureGeo(same.map((f) => f.properties.region));
+    } catch (error) {
+        console.warn('Route line unavailable:', error);
+    }
+    if (token !== routeToken) return;
+
+    const color = isCitylink(feature) ? COLORS.citylink : COLORS.route;
+    const layer = L.geoJSON({ type: 'FeatureCollection', features: same.filter((f) => f.geometry) }, {
+        style: { color: color, weight: 5, opacity: 0.85 }
+    }).addTo(journeyLayer);
+
+    const stops = same.reduce((a, f) => (f.properties.stops.length > a.length ? f.properties.stops : a), []);
+    const points = [];
+    stops.forEach((stop, i) => {
+        const marker = L.circleMarker([stop.lat, stop.lon], {
+            radius: isAccessible(stop) ? 6 : 5, fillColor: stopColor(stop), fillOpacity: 0.9, color: '#ffffff', weight: 2, opacity: 1
+        }).addTo(journeyLayer);
+        bindStopCard(marker, stop, ['Stop ' + (i + 1) + ' of ' + stops.length + ' on route ' + p.short_name]);
+        points.push([stop.lat, stop.lon]);
+    });
+
+    const bounds = layer.getBounds();
+    if (bounds.isValid()) fitTo(bounds); else if (points.length) fitTo(L.latLngBounds(points));
+}
+
+// Opening map.html?mode=tickets (from the tickets page) lands on the search bar
+function onRoutesLoaded() {
+    const requested = new URLSearchParams(window.location.search).get('mode');
+    if (requested === 'tickets') $('search-input').focus();
+    updateAccessStatus();
+    if (accessibleOnly()) expandSheet();   // so the ticked box is seen
+}
+
+// Ticking or unticking the accessible filter: a chosen stop that is not accessible is cleared,
+// then the journey is worked out again with the stops that are left
+accessBox.addEventListener('change', () => {
+    updateAccessStatus();
+    nearbyBuiltAt = null;
+    updateNearby();
+    if (!accessibleOnly()) {
+        if (currentView === 'journey') runPlan();
+        return;
+    }
+
+    const cleared = [];
+    if (trip.dest && trip.dest.stop && !isAccessible(trip.dest.stop)) cleared.push(trip.dest.name);
+    if (trip.origin && trip.origin.stop && !isAccessible(trip.origin.stop)) {
+        cleared.push(trip.origin.name);
+        trip.origin = null;
+    }
+    if (cleared.length) {
+        showToast(cleared.join(' and ') + (cleared.length === 1 ? " isn't" : " aren't") +
+            ' marked wheelchair accessible, so ' + (cleared.length === 1 ? 'it was' : 'they were') + ' cleared.');
+    }
+    if (trip.dest && trip.dest.stop && !isAccessible(trip.dest.stop)) {
+        const origin = trip.origin;
+        clearAll();
+        if (origin) trip.origin = origin;   // keep a still-usable starting point for the next search
+        return;
+    }
+    if (currentView === 'journey') runPlan();
+});
 
 // =========================================
 //  Go
