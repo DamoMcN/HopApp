@@ -23,61 +23,162 @@
     </header>
 
     <main class="tickets-main">
-        <section class="journey" id="journey" aria-labelledby="journey-title" hidden>
-            <h2 id="journey-title">Your journey</h2>
+        <div class="tickets-tabs" role="tablist" aria-label="Tickets">
+            <button type="button" role="tab" class="tickets-tab" id="tab-buy" aria-controls="panel-buy"
+                    aria-selected="false" tabindex="-1">Buy a ticket</button>
+            <button type="button" role="tab" class="tickets-tab" id="tab-tickets" aria-controls="panel-tickets"
+                    aria-selected="true">My tickets<span class="tab-count" id="tab-count" hidden></span></button>
+        </div>
 
-            <div class="journey-route">
-                <span class="journey-badge" id="j-badge"></span>
-                <div>
-                    <span class="journey-name" id="j-name"></span>
-                    <span class="journey-agency" id="j-agency"></span>
+        <div id="panel-buy" role="tabpanel" aria-labelledby="tab-buy" hidden>
+            <section class="journey builder" id="builder" aria-labelledby="builder-title">
+                <h2 id="builder-title">Choose your journey</h2>
+
+                <div class="builder-field" id="route-field">
+                    <label for="route-search">Bus route</label>
+                    <input type="text" id="route-search" role="combobox" aria-expanded="false"
+                           aria-controls="route-results" aria-autocomplete="list" autocomplete="off"
+                           placeholder="Route number or name, for example 409">
+                    <ul class="builder-results" id="route-results" role="listbox" aria-label="Matching routes" hidden></ul>
                 </div>
-            </div>
 
-            <ol class="journey-stops">
-                <li><span class="journey-pin from" aria-hidden="true"></span>
-                    <div><small>From</small><strong id="j-from"></strong></div></li>
-                <li><span class="journey-pin to" aria-hidden="true"></span>
-                    <div><small>To</small><strong id="j-to"></strong></div></li>
-            </ol>
+                <div class="builder-picked" id="route-picked" hidden>
+                    <span class="journey-badge" id="b-badge"></span>
+                    <div class="builder-picked-text">
+                        <span class="journey-name" id="b-name"></span>
+                        <span class="journey-agency" id="b-agency"></span>
+                    </div>
+                    <button type="button" class="builder-link" id="b-change">Change route</button>
+                </div>
 
-            <p class="journey-between" id="j-between"></p>
+                <div id="stop-fields" hidden>
+                    <div class="builder-field">
+                        <label for="from-stop">From</label>
+                        <select id="from-stop"></select>
+                    </div>
+                    <div class="builder-field">
+                        <label for="to-stop">To</label>
+                        <select id="to-stop"></select>
+                    </div>
+                    <p class="journey-between" id="b-between"></p>
+                    <button class="buy-btn" id="b-use" type="button">Use this journey</button>
+                </div>
 
-            <p class="ticket-price" id="ticket-price" hidden></p>
-            <button class="buy-btn" id="buy-btn" type="button" disabled>Buy ticket</button>
-            <p class="journey-note">Paid from your Hop Card balance. Your journey is saved until you close the app.</p>
+                <p class="builder-status" id="builder-status" role="status" hidden></p>
+                <p class="builder-map">Or <a href="../map/map.html?mode=tickets">find it on the map</a> and bring the journey here.</p>
+            </section>
 
-            <div class="journey-actions">
-                <a href="../map/map.html?mode=tickets">Change journey</a>
-                <button type="button" id="clear-journey">Clear</button>
-            </div>
-        </section>
+            <section class="journey" id="journey" aria-labelledby="journey-title" hidden>
+                <h2 id="journey-title">Your journey</h2>
 
-        <a class="plan-btn" id="plan-btn" href="../map/map.html?mode=tickets" hidden>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>
-            </svg>
-            Plan a journey
-        </a>
+                <div class="journey-route">
+                    <span class="journey-badge" id="j-badge"></span>
+                    <div>
+                        <span class="journey-name" id="j-name"></span>
+                        <span class="journey-agency" id="j-agency"></span>
+                    </div>
+                </div>
 
-        <section class="my-tickets" id="my-tickets" aria-labelledby="my-tickets-title" hidden>
-            <h2 id="my-tickets-title">My tickets</h2>
-            <ul class="ticket-list" id="ticket-list"></ul>
-        </section>
+                <ol class="journey-stops">
+                    <li><span class="journey-pin from" aria-hidden="true"></span>
+                        <div><small>From</small><strong id="j-from"></strong></div></li>
+                    <li><span class="journey-pin to" aria-hidden="true"></span>
+                        <div><small>To</small><strong id="j-to"></strong></div></li>
+                </ol>
 
-        <section class="tickets-empty" id="tickets-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M3 9a2 2 0 0 0 0 6v2.5A1.5 1.5 0 0 0 4.5 19h15a1.5 1.5 0 0 0 1.5-1.5V15a2 2 0 0 1 0-6V6.5A1.5 1.5 0 0 0 19.5 5h-15A1.5 1.5 0 0 0 3 6.5z"/>
-                <path d="M14 5v2M14 11v2M14 17v2"/>
-            </svg>
-            <h2>No tickets yet</h2>
-            <p>Plan a journey on the map and buy a ticket. It will show up here with a QR code to show when you board.</p>
-            <a href="../map/map.html?mode=tickets">Plan a journey</a>
-        </section>
+                <p class="journey-between" id="j-between"></p>
+
+                <fieldset class="when" id="when" disabled>
+                    <legend>When are you travelling?</legend>
+                    <div class="when-fields">
+                        <div class="when-field">
+                            <label for="travel-date">Date</label>
+                            <input type="date" id="travel-date" required>
+                        </div>
+                        <div class="when-field">
+                            <label for="travel-time">Departure time</label>
+                            <select id="travel-time" required></select>
+                        </div>
+                    </div>
+                    <p class="when-error" id="when-error" role="alert" hidden></p>
+                </fieldset>
+
+                <p class="ticket-price" id="ticket-price" hidden></p>
+                <button class="buy-btn" id="buy-btn" type="button" disabled>Buy ticket</button>
+                <p class="journey-note">Paid from your Hop Card balance. The ticket is valid for 90 minutes from the time you choose.</p>
+
+                <div class="journey-actions">
+                    <a href="../map/map.html?mode=tickets">Change journey</a>
+                    <button type="button" id="clear-journey">Clear</button>
+                </div>
+            </section>
+        </div>
+
+        <div id="panel-tickets" role="tabpanel" aria-labelledby="tab-tickets">
+            <a class="plan-btn" id="plan-btn" href="../map/map.html?mode=tickets" hidden>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>
+                </svg>
+                Plan a journey
+            </a>
+
+            <section class="my-tickets" id="my-tickets" aria-labelledby="my-tickets-title" hidden>
+                <h2 id="my-tickets-title">My tickets</h2>
+                <ul class="ticket-list" id="ticket-list"></ul>
+            </section>
+
+            <section class="tickets-empty" id="tickets-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 9a2 2 0 0 0 0 6v2.5A1.5 1.5 0 0 0 4.5 19h15a1.5 1.5 0 0 0 1.5-1.5V15a2 2 0 0 1 0-6V6.5A1.5 1.5 0 0 0 19.5 5h-15A1.5 1.5 0 0 0 3 6.5z"/>
+                    <path d="M14 5v2M14 11v2M14 17v2"/>
+                </svg>
+                <h2>No tickets yet</h2>
+                <p>Buy a ticket here, or plan a journey on the map first. Your tickets show up here with a QR code to show when you board.</p>
+                <button type="button" class="empty-buy" id="empty-buy">Buy a ticket</button>
+                <a href="../map/map.html?mode=tickets">Plan a journey</a>
+            </section>
+        </div>
     </main>
 
+    <!-- Pay for the ticket with the Hop Card balance. Views are switched by tickets.js -->
+    <dialog id="pay-dialog" class="pay-dialog" aria-labelledby="pay-title">
+        <h2 id="pay-title">Confirm payment</h2>
+
+        <div id="pay-review">
+            <p class="pay-journey" id="pay-journey"></p>
+            <dl class="pay-rows">
+                <div><dt>Date &amp; time</dt><dd id="pay-when"></dd></div>
+                <div><dt>Ticket price</dt><dd id="pay-price"></dd></div>
+                <div><dt>Hop Card balance</dt><dd id="pay-balance"></dd></div>
+                <div><dt>Balance after</dt><dd id="pay-after"></dd></div>
+            </dl>
+            <button id="pay-confirm" class="buy-btn" type="button">Confirm payment</button>
+            <button id="pay-cancel" class="pay-secondary" type="button">Cancel</button>
+        </div>
+
+        <div id="pay-result" role="status" hidden>
+            <div id="pay-mark" class="pay-mark" aria-hidden="true"></div>
+            <p id="pay-result-title" class="pay-result-title"></p>
+            <p id="pay-result-text"></p>
+            <div id="pay-qr" class="qr-box" hidden></div>
+            <a id="pay-topup" class="buy-btn pay-link" href="../topup/topup.html" hidden>Top up</a>
+            <button id="pay-close" class="pay-secondary" type="button">Close</button>
+        </div>
+    </dialog>
+
+    <!-- A ticket's QR code, big enough to scan -->
+    <dialog id="qr-dialog" class="pay-dialog qr-dialog" aria-labelledby="qr-title">
+        <h2 id="qr-title">Your ticket</h2>
+        <p class="qr-route" id="qr-route"></p>
+        <p class="qr-when" id="qr-when"></p>
+        <div id="qr-code" class="qr-box qr-big"></div>
+        <p class="qr-hint" id="qr-hint">Show this code to the driver when you board.</p>
+        <button id="qr-close" class="pay-secondary" type="button">Close</button>
+    </dialog>
+
+    <script src="../shared/js/qrcode.min.js"></script>
     <script src="../shared/js/menu.js?v=20261122-accessible-nav"></script>
     <script src="../shared/js/navbar.js"></script>
     <script src="tickets.js"></script>

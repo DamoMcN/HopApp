@@ -70,10 +70,11 @@ test('Missing route name and operator get sensible defaults', async ({ page }) =
   await expect(page.locator('#j-agency')).toHaveText('Unknown operator');
 });
 
-test('Clear removes the saved journey', async ({ page }) => {
+test('Clear removes the saved journey and goes back to choosing one', async ({ page }) => {
   await openTickets(page, JOURNEY);
   await page.getByRole('button', { name: 'Clear' }).click();
-  await expectEmpty(page);
+  await expect(page.locator('#journey')).toBeHidden();
+  await expect(page.locator('#builder')).toBeVisible();
   expect(await page.evaluate(key => sessionStorage.getItem(key), DRAFT_KEY)).toBeNull();
 });
 

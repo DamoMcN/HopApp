@@ -1,7 +1,8 @@
-// Tickets page. Shows the journey picked on the map (Buy a ticket tab), lets the user choose
-// the date and time, pay with the Hop Card balance, and see their tickets with a QR code.
+// Tickets page. Two tabs: Buy a ticket (choose a route and stops here, or bring a journey over from
+// the map, then pick the date and time and pay with the Hop Card balance) and My tickets (each with a QR code).
 
 const DRAFT_KEY = 'hop.ticketDraft';
+const byId = (id) => document.getElementById(id);
 
 function text(value, maxLength) {
     return typeof value === 'string' && value.length > 0 && value.length <= maxLength ? value : null;
@@ -33,15 +34,49 @@ function readDraft() {
 
 let tickets = [];   // the user's tickets from the server
 
+// The My tickets tab: the list, or a short message with a way to buy the first one
 function updateEmpty() {
-    const hasDraft = Boolean(readDraft());
-    document.getElementById('tickets-empty').hidden = hasDraft || tickets.length > 0;
-    // With tickets and no journey being bought: just a button to plan the next one
-    document.getElementById('plan-btn').hidden = hasDraft || tickets.length === 0;
+    document.getElementById('tickets-empty').hidden = tickets.length > 0;
+    // With tickets: a button to plan the next journey
+    document.getElementById('plan-btn').hidden = tickets.length === 0;
+}
+
+// ---------- Tabs ----------
+
+function setTab(name, byPerson) {
+    byId('panel-buy').hidden = name !== 'buy';
+    byId('panel-tickets').hidden = name !== 'tickets';
+    ['buy', 'tickets'].forEach((tabName) => {
+        const tab = byId('tab-' + tabName);
+        tab.setAttribute('aria-selected', String(tabName === name));
+        tab.tabIndex = tabName === name ? 0 : -1;
+    });
+    if (byPerson && name === 'buy') prepareBuilder();
+}
+
+['buy', 'tickets'].forEach((name) => {
+    const tab = byId('tab-' + name);
+    tab.addEventListener('click', () => setTab(name, true));
+    tab.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const other = name === 'buy' ? 'tickets' : 'buy';
+        setTab(other, true);
+        byId('tab-' + other).focus();
+    });
+});
+
+// The number of valid tickets, next to the tab name
+function updateTabCount() {
+    const valid = tickets.filter((t) => t.status === 'active').length;
+    const badge = byId('tab-count');
+    badge.textContent = String(valid);
+    badge.hidden = valid === 0;
 }
 
 function show(draft) {
     document.getElementById('journey').hidden = !draft;
+    document.getElementById('builder').hidden = Boolean(draft);   // choosing a journey is only needed without one
     updateEmpty();
     if (!draft) return;
 
@@ -60,9 +95,13 @@ function show(draft) {
 document.getElementById('clear-journey').addEventListener('click', () => {
     try { sessionStorage.removeItem(DRAFT_KEY); } catch (e) { /* nothing to clear */ }
     show(null);
+    resetBuilder();
+    prepareBuilder();
 });
 
 show(readDraft());
+// A journey from the map opens on the Buy a ticket tab, otherwise on My tickets
+setTab(readDraft() ? 'buy' : 'tickets', false);
 
 // =========================================
 //  HOP Up Priority Payment: pay with the Hop Card balance
@@ -73,6 +112,7 @@ const money = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR
 const $ = (id) => document.getElementById(id);
 const payDialog = $('pay-dialog');
 let fare = null;          // { price, balance, card_type } from the server
+let lastTimes = null;     // the dates and times a ticket can be bought for, from the server
 let pendingKey = null;    // kept for a retry, so one ticket can't be paid for twice
 
 function newKey() {
@@ -100,7 +140,9 @@ async function loadFare() {
         fare = data;
         $('ticket-price').textContent = 'Ticket price: ' + money.format(fare.price) + ' (' + fare.card_type + ' fare)';
         $('ticket-price').hidden = false;
-        $('buy-btn').disabled = false;
+        setTickets(data.tickets);
+        lastTimes = data.times;
+        setupWhen(data.times);
     } catch (error) {
         console.error('Could not load the ticket price:', error);
         $('ticket-price').textContent = "Couldn't load the ticket price. Please refresh the page.";
@@ -121,9 +163,11 @@ function showResult(ok, title, text, offerTopUp) {
 
 function openPayment() {
     const draft = readDraft();
-    if (!draft || !fare) return;
+    if (!draft || !fare || !checkWhen()) return;
     $('pay-title').textContent = 'Confirm payment';
     $('pay-journey').textContent = journeyLabel(draft);
+    $('pay-when').textContent = formatWhen(chosenWhen());
+    $('pay-qr').hidden = true;
     $('pay-price').textContent = money.format(fare.price);
     $('pay-balance').textContent = money.format(fare.balance);
     $('pay-after').textContent = money.format(fare.balance - fare.price);
@@ -143,7 +187,11 @@ async function confirmPayment() {
         const response = await fetch(TICKET_API, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'buy', route: journeyLabel(draft), idempotency_key: pendingKey })
+            body: JSON.stringify({
+                action: 'buy', route: journeyLabel(draft),
+                travel_date: $('travel-date').value, travel_time: $('travel-time').value,
+                idempotency_key: pendingKey
+            })
         });
         const data = await response.json();
         if (data.logged_in === false) { window.location.href = '../auth/index.html'; return; }
@@ -151,8 +199,25 @@ async function confirmPayment() {
 
         if (data.success) {
             pendingKey = null;
+            // Bought: the journey form goes away and the page shows just the tickets
+            try { sessionStorage.removeItem(DRAFT_KEY); } catch (e) { /* nothing to clear */ }
+            show(null);
+            resetBuilder();
+            setTab('tickets', false);   // behind the pop-up: the new ticket is waiting in My tickets
+            if (Array.isArray(data.tickets)) setTickets(data.tickets);
+            else loadFare();
             showResult(true, money.format(data.price) + ' paid from your Hop Card.',
-                'Your new balance is ' + money.format(data.balance) + '. Have a good trip!', false);
+                'Your new balance is ' + money.format(data.balance) + '. Show this QR code when you board. ' +
+                'It is also saved in My tickets.', false);
+            const bought = tickets.find((t) => t.id === data.ticket_id);
+            if (bought && bought.qr_token) {
+                drawQr($('pay-qr'), bought.qr_token, 'QR code for your new ticket');
+                $('pay-qr').hidden = false;
+            }
+        } else if (data.declined === 'time_unavailable') {
+            pendingKey = null;   // nothing was charged
+            showResult(false, data.error, 'You have not been charged. Choose another date or time and try again.', false);
+            loadFare();          // refresh the times that are left today
         } else if (data.declined) {
             pendingKey = null;   // nothing was charged, a new attempt gets a new key
             showResult(false, data.error,
@@ -174,4 +239,423 @@ $('pay-confirm').addEventListener('click', confirmPayment);
 $('pay-cancel').addEventListener('click', () => payDialog.close());
 $('pay-close').addEventListener('click', () => payDialog.close());
 
-if (readDraft()) loadFare();
+// =========================================
+//  Date and time of the ticket (SCRUM-120)
+// =========================================
+
+let times = null;   // from the server: first, last, step, days_ahead, today, now (Irish time)
+
+const pad = (n) => String(n).padStart(2, '0');
+const toMinutes = (hhmm) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+const toHhmm = (minutes) => pad(Math.floor(minutes / 60)) + ':' + pad(minutes % 60);
+
+function addDays(isoDate, days) {
+    const d = new Date(isoDate + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+}
+
+// Departure times for a date. Today only offers the ones that haven't gone yet.
+function slotsFor(date) {
+    const slots = [];
+    const earliest = date === times.today ? toMinutes(times.now) - times.step : -1;
+    for (let m = toMinutes(times.first); m <= toMinutes(times.last); m += times.step) {
+        if (m >= earliest) slots.push(toHhmm(m));
+    }
+    return slots;
+}
+
+function fillTimes() {
+    const select = $('travel-time');
+    const previous = select.value;
+    const date = $('travel-date').value;
+    select.innerHTML = '';
+    const valid = date >= times.today && date <= addDays(times.today, times.days_ahead);
+    (valid ? slotsFor(date) : []).forEach((slot) => select.add(new Option(slot, slot)));
+    if (Array.from(select.options).some((o) => o.value === previous)) select.value = previous;
+    select.disabled = select.options.length === 0;
+}
+
+function setupWhen(serverTimes) {
+    if (!serverTimes || !readDraft()) return;
+    times = serverTimes;
+    const date = $('travel-date');
+    date.min = times.today;
+    date.max = addDays(times.today, times.days_ahead);
+    if (!date.value || date.value < date.min) {
+        // No buses left today: start on tomorrow
+        date.value = slotsFor(times.today).length ? times.today : addDays(times.today, 1);
+    }
+    $('when').disabled = false;
+    fillTimes();
+    checkWhen();
+}
+
+// Says what is wrong with the choice, and only lets the user pay when it is fine
+function checkWhen() {
+    if (!times) return false;
+    const date = $('travel-date').value;
+    let error = '';
+    if (!date) {
+        error = 'Choose a date for your journey.';
+    } else if (date < times.today) {
+        error = 'That date has already passed. Choose today or a later date.';
+    } else if (date > addDays(times.today, times.days_ahead)) {
+        error = 'Tickets can only be bought up to ' + times.days_ahead + ' days ahead.';
+    } else if (!$('travel-time').value) {
+        error = date === times.today
+            ? 'There are no more buses today. Choose another date.'
+            : 'Choose a departure time.';
+    }
+    $('when-error').textContent = error;
+    $('when-error').hidden = !error;
+    $('buy-btn').disabled = Boolean(error) || !fare;
+    return !error;
+}
+
+function chosenWhen() {
+    return $('travel-date').value + ' ' + $('travel-time').value;
+}
+
+// "2026-11-18 14:30(:00)" -> "Wed 18 Nov 2026, 14:30" (the time is already Irish time)
+function formatWhen(value) {
+    if (!value) return 'Any time';
+    const d = new Date(value.slice(0, 10) + 'T00:00:00Z');
+    const day = d.toLocaleDateString('en-IE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    return day + ', ' + value.slice(11, 16);
+}
+
+$('travel-date').addEventListener('change', () => { if (times) { fillTimes(); checkWhen(); } });
+$('travel-time').addEventListener('change', checkWhen);
+
+// =========================================
+//  My tickets with their QR code (SCRUM-122)
+// =========================================
+
+const STATUS_TEXT = { active: 'Valid', used: 'Used', expired: 'Expired' };
+
+function drawQr(box, token, label) {
+    box.innerHTML = '';
+    if (typeof qrcode !== 'function') {
+        box.textContent = "The QR code couldn't be drawn. Please refresh the page.";
+        return;
+    }
+    const qr = qrcode(0, 'M');
+    qr.addData('HOP-TICKET:' + token);
+    qr.make();
+    box.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 3, scalable: true });
+    const svg = box.querySelector('svg');
+    if (svg) {
+        svg.setAttribute('role', 'img');
+        svg.setAttribute('aria-label', label);
+    }
+}
+
+// Valid tickets first (soonest journey first), then used and expired ones
+function sortTickets(list) {
+    const valid = list.filter((t) => t.status === 'active')
+        .sort((a, b) => String(a.travel_at).localeCompare(String(b.travel_at)));
+    const old = list.filter((t) => t.status !== 'active');
+    return valid.concat(old);
+}
+
+function setTickets(list) {
+    tickets = Array.isArray(list) ? sortTickets(list) : [];
+    const ul = $('ticket-list');
+    ul.innerHTML = '';
+
+    tickets.forEach((t) => {
+        const li = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'ticket-item is-' + t.status;
+
+        const info = document.createElement('div');
+        info.className = 'ticket-info';
+        const route = document.createElement('strong');
+        route.textContent = t.route;
+        const when = document.createElement('span');
+        when.textContent = formatWhen(t.travel_at);
+        const status = document.createElement('span');
+        status.className = 'ticket-status is-' + t.status;
+        status.textContent = STATUS_TEXT[t.status] || t.status;
+        info.append(route, when, status);
+        button.appendChild(info);
+
+        if (t.qr_token) {
+            const thumb = document.createElement('div');
+            thumb.className = 'qr-box qr-thumb';
+            drawQr(thumb, t.qr_token, 'QR code');
+            thumb.setAttribute('aria-hidden', 'true');
+            button.appendChild(thumb);
+            button.setAttribute('aria-label', 'Show QR code: ' + t.route + ', ' + formatWhen(t.travel_at));
+        }
+        button.addEventListener('click', () => openTicket(t));
+        li.appendChild(button);
+        ul.appendChild(li);
+    });
+
+    $('my-tickets').hidden = tickets.length === 0;
+    updateEmpty();
+    updateTabCount();
+}
+
+const qrDialog = $('qr-dialog');
+
+function openTicket(t) {
+    $('qr-route').textContent = t.route;
+    $('qr-when').textContent = formatWhen(t.travel_at) + ' · ' + (STATUS_TEXT[t.status] || t.status);
+    const box = $('qr-code');
+    if (t.qr_token) {
+        drawQr(box, t.qr_token, 'QR code for your ticket');
+        $('qr-hint').textContent = 'Show this code to the driver when you board. Valid for ' +
+            ((times && times.valid_minutes) || 90) + ' minutes from ' + (t.travel_at ? t.travel_at.slice(11, 16) : 'boarding') + '.';
+    } else {
+        box.innerHTML = '';
+        $('qr-hint').textContent = t.status === 'used'
+            ? 'This ticket has already been used, so it has no QR code.'
+            : 'This ticket has expired, so it can no longer be used. Buy a new ticket for your next journey.';
+    }
+    box.hidden = !t.qr_token;
+    qrDialog.showModal();
+}
+
+$('qr-close').addEventListener('click', () => qrDialog.close());
+
+// =========================================
+//  Choose a journey on this page (Buy a ticket tab)
+// =========================================
+// A journey can also come from the map. Either way it ends up as the same saved journey
+// ('hop.ticketDraft'), so there is only one way to pay.
+
+const ROUTES_URL = '../map/data/index.json';   // the route list the map uses
+let routeCatalog = null;    // { stops, routes } once loaded
+let catalogLoad = null;
+let pickedRoute = null;     // the route chosen here, with its stops
+
+// index.json: stops [id, name, lat, lon, ...], routes [id, number, name, operator, region, label, geoKey, [stop positions], ...]
+function buildCatalog(data) {
+    if (!data || !Array.isArray(data.stops) || !Array.isArray(data.routes)) throw new Error('Bad route list');
+    const best = new Map();   // the two directions and variants of a route: keep the longest of each
+    data.routes.forEach((r) => {
+        if (!Array.isArray(r[7]) || r[7].length < 2 || !r[1]) return;
+        const route = { id: String(r[0]), shortName: String(r[1]), longName: String(r[2] || ''), agency: String(r[3] || ''), positions: r[7] };
+        const key = route.shortName + '|' + route.longName + '|' + route.agency;
+        const old = best.get(key);
+        if (!old || route.positions.length > old.positions.length) best.set(key, route);
+    });
+    return { stops: data.stops, routes: Array.from(best.values()) };
+}
+
+function loadCatalog() {
+    if (!catalogLoad) {
+        catalogLoad = fetch(ROUTES_URL)
+            .then((response) => {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            })
+            .then((data) => { routeCatalog = buildCatalog(data); return routeCatalog; })
+            .catch((error) => { catalogLoad = null; throw error; });   // so it can be tried again
+    }
+    return catalogLoad;
+}
+
+function setBuilderStatus(message) {
+    byId('builder-status').textContent = message || '';
+    byId('builder-status').hidden = !message;
+}
+
+// Starts loading the route list, and says if it can't
+function prepareBuilder() {
+    if (routeCatalog) return Promise.resolve();
+    setBuilderStatus('Loading routes…');
+    return loadCatalog().then(() => {
+        setBuilderStatus('');
+        if (byId('route-search').value.trim()) showResults();
+    }).catch((error) => {
+        console.error('Could not load the route list:', error);
+        setBuilderStatus("Couldn't load the route list. Check your connection and try again, or find your journey on the map.");
+    });
+}
+
+// Routes whose number or name matches, exact numbers first
+function findRoutes(query) {
+    const q = query.trim().toLowerCase();
+    if (!q || !routeCatalog) return [];
+    const found = [];
+    routeCatalog.routes.forEach((route) => {
+        const number = route.shortName.toLowerCase();
+        let score = -1;
+        if (number === q) score = 0;
+        else if (number.startsWith(q)) score = 1;
+        else if (route.longName.toLowerCase().includes(q)) score = 2;
+        if (score >= 0) found.push({ route, score });
+    });
+    found.sort((a, b) => a.score - b.score ||
+        a.route.shortName.localeCompare(b.route.shortName, undefined, { numeric: true }) ||
+        a.route.longName.localeCompare(b.route.longName));
+    return found.slice(0, 8).map((f) => f.route);
+}
+
+function closeResults() {
+    byId('route-results').hidden = true;
+    byId('route-results').innerHTML = '';
+    byId('route-search').setAttribute('aria-expanded', 'false');
+}
+
+function showResults() {
+    const list = byId('route-results');
+    const query = byId('route-search').value;
+    list.innerHTML = '';
+    if (!query.trim() || !routeCatalog) { closeResults(); return; }
+
+    const routes = findRoutes(query);
+    if (routes.length === 0) {
+        const none = document.createElement('li');
+        none.className = 'builder-none';
+        none.textContent = 'No routes match "' + query.trim().slice(0, 40) + '".';
+        list.appendChild(none);
+    }
+    routes.forEach((route) => {
+        const li = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'builder-result';
+        button.setAttribute('role', 'option');
+
+        const badge = document.createElement('span');
+        badge.className = 'journey-badge result-badge' + (route.agency.toLowerCase().includes('citylink') ? ' is-citylink' : '');
+        badge.textContent = route.shortName;
+        const text = document.createElement('span');
+        text.className = 'result-text';
+        const name = document.createElement('strong');
+        name.textContent = route.longName || 'Bus route';
+        const agency = document.createElement('small');
+        agency.textContent = route.agency || 'Unknown operator';
+        text.append(name, agency);
+        button.append(badge, text);
+
+        button.addEventListener('click', () => pickRoute(route));
+        li.appendChild(button);
+        list.appendChild(li);
+    });
+    list.hidden = false;
+    byId('route-search').setAttribute('aria-expanded', 'true');
+}
+
+byId('route-search').addEventListener('input', () => {
+    if (routeCatalog) showResults(); else prepareBuilder();
+});
+byId('route-search').addEventListener('focus', () => { if (!routeCatalog) prepareBuilder(); });
+byId('route-search').addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown') {
+        const first = byId('route-results').querySelector('.builder-result');
+        if (first) { event.preventDefault(); first.focus(); }
+    } else if (event.key === 'Escape') {
+        closeResults();
+    }
+});
+byId('route-results').addEventListener('keydown', (event) => {
+    const buttons = Array.from(byId('route-results').querySelectorAll('.builder-result'));
+    const at = buttons.indexOf(document.activeElement);
+    if (at === -1) return;
+    if (event.key === 'ArrowDown' && buttons[at + 1]) { event.preventDefault(); buttons[at + 1].focus(); }
+    if (event.key === 'ArrowUp') { event.preventDefault(); (buttons[at - 1] || byId('route-search')).focus(); }
+    if (event.key === 'Escape') { closeResults(); byId('route-search').focus(); }
+});
+
+function routeStops(route) {
+    if (!route.stops) {
+        route.stops = route.positions
+            .map((i) => routeCatalog.stops[i])
+            .filter(Boolean)
+            .map((stop) => ({ id: String(stop[0]), name: String(stop[1]) }));
+    }
+    return route.stops;
+}
+
+function fillFromStops() {
+    const stops = routeStops(pickedRoute);
+    const from = byId('from-stop');
+    from.innerHTML = '';
+    for (let i = 0; i < stops.length - 1; i++) from.add(new Option((i + 1) + '. ' + stops[i].name, String(i)));
+    from.value = '0';
+}
+
+// To can only be a stop after From. Keeps the earlier choice when it is still possible.
+function fillToStops() {
+    const stops = routeStops(pickedRoute);
+    const to = byId('to-stop');
+    const previous = Number(to.value);
+    const from = Number(byId('from-stop').value);
+    to.innerHTML = '';
+    for (let i = from + 1; i < stops.length; i++) to.add(new Option((i + 1) + '. ' + stops[i].name, String(i)));
+    to.value = String(previous > from && previous < stops.length ? previous : stops.length - 1);
+    updateBetween();
+}
+
+function updateBetween() {
+    const n = Number(byId('to-stop').value) - Number(byId('from-stop').value);
+    byId('b-between').textContent = n + (n === 1 ? ' stop' : ' stops') + ' on this journey.';
+}
+
+function pickRoute(route) {
+    if (routeStops(route).length < 2) return;
+    pickedRoute = route;
+    closeResults();
+    byId('route-field').hidden = true;
+    byId('route-picked').hidden = false;
+    byId('b-badge').textContent = route.shortName;
+    byId('b-badge').classList.toggle('is-citylink', route.agency.toLowerCase().includes('citylink'));
+    byId('b-name').textContent = route.longName || 'Bus route';
+    byId('b-agency').textContent = route.agency || 'Unknown operator';
+    fillFromStops();
+    byId('to-stop').innerHTML = '';
+    fillToStops();
+    byId('stop-fields').hidden = false;
+    setBuilderStatus('');
+    byId('from-stop').focus();
+}
+
+function resetBuilder() {
+    pickedRoute = null;
+    byId('route-search').value = '';
+    closeResults();
+    byId('route-field').hidden = false;
+    byId('route-picked').hidden = true;
+    byId('stop-fields').hidden = true;
+    setBuilderStatus('');
+}
+
+byId('b-change').addEventListener('click', () => {
+    resetBuilder();
+    byId('route-search').focus();
+});
+byId('from-stop').addEventListener('change', fillToStops);
+byId('to-stop').addEventListener('change', updateBetween);
+byId('empty-buy').addEventListener('click', () => setTab('buy', true));
+
+// Saves the choice like the map does and shows it, ready for date, time and payment
+byId('b-use').addEventListener('click', () => {
+    if (!pickedRoute) return;
+    const stops = routeStops(pickedRoute);
+    const a = Number(byId('from-stop').value);
+    const b = Number(byId('to-stop').value);
+    if (!stops[a] || !stops[b] || b <= a) { setBuilderStatus('Choose a From stop that comes before the To stop.'); return; }
+
+    const draft = {
+        routeId: pickedRoute.id, shortName: pickedRoute.shortName.slice(0, 20),
+        longName: pickedRoute.longName.slice(0, 200), agency: pickedRoute.agency.slice(0, 120),
+        fromId: stops[a].id, fromName: stops[a].name.slice(0, 160),
+        toId: stops[b].id, toName: stops[b].name.slice(0, 160),
+        stopsBetween: b - a
+    };
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (e) { /* checked below */ }
+    if (!readDraft()) { setBuilderStatus("That journey couldn't be saved. Try different stops."); return; }
+
+    show(readDraft());
+    if (fare && lastTimes) setupWhen(lastTimes); else loadFare();
+    byId('travel-date').focus();
+});
+
+loadFare();

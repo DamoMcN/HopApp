@@ -1596,3 +1596,79 @@ dialog.loc-dialog::backdrop {
 body.is-pinning .leaflet-container {
     cursor: crosshair;
 }
+
+/* ---------- Pick the buses to show in a stop card ---------- */
+.stop-chips .stop-chip {
+    font-family: inherit;
+    line-height: 1.3;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.stop-chips .stop-chip[aria-pressed="true"] {
+    outline: 2px solid var(--card-ink);
+    outline-offset: 1px;
+}
+
+.stop-chips .stop-chip.is-dimmed,
+.stop-chips .stop-chip.is-citylink.is-dimmed {
+    color: #766d86;
+    background: #e4dfeb;
+}
+
+.stop-chips .stop-chip:focus-visible,
+.stop-chips-more:focus-visible,
+.stop-chips-clear:focus-visible {
+    outline: 3px solid var(--card-ink);
+    outline-offset: 2px;
+}
+
+button.stop-chips-more {
+    padding: 0.1rem 0.2rem;
+    font: inherit;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.stop-chips-clear {
+    align-self: center;
+    margin-left: auto;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    font: inherit;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--card-ink);
+    background: #ece4f3;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.stop-chips-clear[hidden] { display: none; }
+
+/* Buy a ticket for the picked bus */
+.option-ticket {
+    display: block;
+    width: 100%;
+    margin-top: 0.4rem;
+    padding: 0.65rem;
+    font: inherit;
+    font-weight: 700;
+    color: var(--card-ink);
+    background: var(--primary-color, #c7aeef);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+.option-ticket:focus-visible {
+    outline: 3px solid var(--card-ink);
+    outline-offset: 2px;
+}

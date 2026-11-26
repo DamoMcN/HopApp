@@ -679,15 +679,22 @@ function formatDelay(delaySeconds) {
     return minutes > 0 ? minutes + ' min late' : Math.abs(minutes) + ' min early';
 }
 
-function renderStopTimes(container, data) {
+// filter: the route numbers picked in the stop card. Empty or missing means every bus.
+function renderStopTimes(container, data, filter) {
     container.innerHTML = '';
     const nowSeconds = data.now || Math.floor(Date.now() / 1000);
-    const rows = data.arrivals.slice(0, 5);
+    const wanted = filter && filter.size ? filter : null;
+    const rows = data.arrivals.filter((a) => {
+        if (!wanted) return true;
+        const feature = routeById(a.routeId);
+        return Boolean(feature) && wanted.has(String(feature.properties.short_name));
+    }).slice(0, 5);
 
     if (rows.length === 0) {
         const none = document.createElement('p');
         none.className = 'stop-times-note';
-        none.textContent = 'No buses due soon.';
+        none.textContent = wanted ? 'No ' + (wanted.size === 1 ? 'bus' : 'buses') + ' due soon on the route' +
+            (wanted.size === 1 ? '' : 's') + ' you picked.' : 'No buses due soon.';
         container.appendChild(none);
         return;
     }
@@ -721,10 +728,10 @@ function renderStopTimes(container, data) {
     });
 }
 
-async function loadStopTimes(container, stopId) {
+async function loadStopTimes(container, stopId, filter) {
     const cached = stopTimesCache.get(stopId);
     if (cached && Date.now() - cached.time < STOP_TIMES_FRESH_MS) {
-        renderStopTimes(container, cached.data);
+        renderStopTimes(container, cached.data, filter);
         return;
     }
 
@@ -736,7 +743,7 @@ async function loadStopTimes(container, stopId) {
         const data = await response.json();
         if (!data || !Array.isArray(data.arrivals)) throw new Error('Unexpected reply');
         stopTimesCache.set(stopId, { time: Date.now(), data: data });
-        if (container.isConnected) renderStopTimes(container, data);
+        if (container.isConnected) renderStopTimes(container, data, filter);
     } catch (error) {
         console.warn('Stop times unavailable:', error);
         if (container.isConnected) {
@@ -768,27 +775,83 @@ function stopCard(stop, extraLines, titlePrefix) {
         box.appendChild(line);
     });
 
-    // Buses that stop here
-    const routes = routesAtStop(stop.id);
-    if (routes.length) {
+    // Buses that stop here. Tap a number to show only that bus under Next buses, tap more numbers to
+    // add them, tap a picked number to remove it, or the x to show every bus again.
+    const filter = new Set();     // the route numbers picked; empty means every bus
+    let timesBox = null;          // the Next buses list, made below
+    const numbers = new Map();    // route number -> a route with that number
+    routesAtStop(stop.id).forEach((feature) => {
+        const number = String(feature.properties.short_name);
+        if (!numbers.has(number)) numbers.set(number, feature);
+    });
+
+    if (numbers.size) {
         const title = document.createElement('h3');
         title.className = 'stop-card-title';
-        title.textContent = routes.length === 1 ? 'Bus that stops here' : 'Buses that stop here';
+        title.textContent = numbers.size === 1 ? 'Bus that stops here' : 'Buses that stop here';
         box.appendChild(title);
 
         const chips = document.createElement('div');
         chips.className = 'stop-chips';
-        routes.slice(0, 10).forEach((feature) => {
-            const chip = routeBadge(feature);
-            chip.title = feature.properties.long_name || '';
-            chips.appendChild(chip);
+        chips.setAttribute('role', 'group');
+        chips.setAttribute('aria-label', 'Show only the buses you pick');
+
+        const clear = document.createElement('button');
+        clear.type = 'button';
+        clear.className = 'stop-chips-clear';
+        clear.textContent = '\u00d7';
+        clear.setAttribute('aria-label', 'Show all buses again');
+        clear.title = 'Show all buses';
+        clear.hidden = true;
+
+        // Dims the numbers that are not picked, and shows the x while any are
+        const syncChips = () => {
+            chips.querySelectorAll('.stop-chip').forEach((chip) => {
+                const picked = filter.has(chip.dataset.route);
+                chip.setAttribute('aria-pressed', String(picked));
+                chip.classList.toggle('is-dimmed', filter.size > 0 && !picked);
+            });
+            clear.hidden = filter.size === 0;
+        };
+        const applyFilter = () => {
+            syncChips();
+            const cached = stopTimesCache.get(String(stop.id));
+            if (timesBox && cached) renderStopTimes(timesBox, cached.data, filter);
+        };
+
+        const list = Array.from(numbers.values());
+        const build = (showAll) => {
+            chips.innerHTML = '';
+            (showAll ? list : list.slice(0, 10)).forEach((feature) => {
+                const number = String(feature.properties.short_name);
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'bus-badge stop-chip' + (isCitylink(feature) ? ' is-citylink' : '');
+                chip.dataset.route = number;
+                chip.textContent = number;
+                chip.title = feature.properties.long_name || '';
+                chip.addEventListener('click', () => {
+                    if (filter.has(number)) filter.delete(number); else filter.add(number);
+                    applyFilter();
+                });
+                chips.appendChild(chip);
+            });
+            if (!showAll && list.length > 10) {
+                const more = document.createElement('button');
+                more.type = 'button';
+                more.className = 'stop-chips-more';
+                more.textContent = '+' + (list.length - 10) + ' more';
+                more.addEventListener('click', () => { build(true); syncChips(); });
+                chips.appendChild(more);
+            }
+            chips.appendChild(clear);
+        };
+        clear.addEventListener('click', () => {
+            filter.clear();
+            applyFilter();
         });
-        if (routes.length > 10) {
-            const more = document.createElement('span');
-            more.className = 'stop-chips-more';
-            more.textContent = '+' + (routes.length - 10) + ' more';
-            chips.appendChild(more);
-        }
+
+        build(false);
         box.appendChild(chips);
     }
 
@@ -808,10 +871,11 @@ function stopCard(stop, extraLines, titlePrefix) {
         loading.textContent = 'Checking live times…';
         times.appendChild(loading);
         box.appendChild(times);
+        timesBox = times;
 
-        loadStopTimes(times, String(stop.id));
+        loadStopTimes(times, String(stop.id), filter);
         stopTimesTimer = setInterval(() => {
-            if (times.isConnected && !document.hidden) loadStopTimes(times, String(stop.id));
+            if (times.isConnected && !document.hidden) loadStopTimes(times, String(stop.id), filter);
         }, STOP_TIMES_REFRESH_MS);
     }
 
@@ -1766,11 +1830,53 @@ function renderOptions() {
         li.appendChild(button);
         list.appendChild(li);
     });
+    updatePressed();
 }
 
+// Hands the journey to the tickets page, which reads it from sessionStorage (see tickets.js)
+const TICKET_DRAFT_KEY = 'hop.ticketDraft';
+
+function goToTicket(opt) {
+    const p = opt.feature.properties;
+    const draft = {
+        routeId: String(p.route_id || ''),
+        shortName: String(p.short_name || '').slice(0, 20),
+        longName: String(p.long_name || p.display_name || '').slice(0, 200),
+        agency: String(p.agency_name || '').slice(0, 120),
+        fromId: String(opt.fromStop.id),
+        fromName: String(opt.fromStop.name).slice(0, 160),
+        toId: String(opt.toStop.id),
+        toName: String(opt.toStop.name).slice(0, 160),
+        stopsBetween: opt.stopsBetween
+    };
+    try {
+        sessionStorage.setItem(TICKET_DRAFT_KEY, JSON.stringify(draft));
+    } catch (error) {
+        showToast("Couldn't pass this journey to the ticket page. Try again.");
+        return;
+    }
+    window.location.href = '../tickets/tickets.html';
+}
+
+// The picked bus gets a button under it to buy a ticket for that journey
 function updatePressed() {
     Array.from($('option-list').querySelectorAll('.option-card')).forEach((button, i) => {
-        if (options[i]) button.setAttribute('aria-pressed', String(options[i].key === chosenKey));
+        const opt = options[i];
+        if (!opt) return;
+        const picked = opt.key === chosenKey;
+        button.setAttribute('aria-pressed', String(picked));
+        const item = button.parentElement;
+        const existing = item.querySelector('.option-ticket');
+        if (picked && !existing) {
+            const ticket = document.createElement('button');
+            ticket.type = 'button';
+            ticket.className = 'option-ticket';
+            ticket.textContent = 'Get a ticket for this journey';
+            ticket.addEventListener('click', () => goToTicket(opt));
+            item.appendChild(ticket);
+        } else if (!picked && existing) {
+            existing.remove();
+        }
     });
 }
 
