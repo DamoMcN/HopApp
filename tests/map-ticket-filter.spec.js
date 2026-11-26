@@ -36,6 +36,10 @@ async function openStopCard(page, stopId) {
   await expect(page.locator('.stop-chips')).toBeVisible();
 }
 
+// Sends the click straight to the button. The card can sit under the search bar or the bottom bar on a
+// small screen, and these tests are about what the card does, not where it lands.
+const tap = locator => locator.dispatchEvent('click');
+
 const chip = (page, number) => page.locator('.stop-chip', { hasText: new RegExp('^' + number + '$') });
 const rows = page => page.locator('.stop-time-row');
 
@@ -57,7 +61,7 @@ test('tapping a bus number shows only that bus, and the others are greyed out', 
   await openFilterCard(page);
   await expect(page.locator('.stop-chips-clear')).toBeHidden();
 
-  await chip(page, '404').click();
+  await tap(chip(page, '404'));
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page).first().locator('.bus-badge')).toHaveText('404');
   await expect(chip(page, '404')).toHaveAttribute('aria-pressed', 'true');
@@ -68,22 +72,22 @@ test('tapping a bus number shows only that bus, and the others are greyed out', 
 
 test('greyed out buses can be added, and tapping a picked bus removes it', async ({ page }) => {
   await openFilterCard(page);
-  await chip(page, '404').click();
-  await chip(page, '51').click();
+  await tap(chip(page, '404'));
+  await tap(chip(page, '51'));
   await expect(rows(page)).toHaveCount(3);
   await expect(chip(page, '51')).toHaveAttribute('aria-pressed', 'true');
   await expect(chip(page, '404')).toHaveAttribute('aria-pressed', 'true');
 
-  await chip(page, '404').click();   // 404 is taken out again, 51 stays
+  await tap(chip(page, '404'));   // 404 is taken out again, 51 stays
   await expect(rows(page)).toHaveCount(2);
   await expect(chip(page, '404')).toHaveClass(/is-dimmed/);
 });
 
 test('tapping the only picked bus shows every bus again', async ({ page }) => {
   await openFilterCard(page);
-  await chip(page, '51').click();
+  await tap(chip(page, '51'));
   await expect(rows(page)).toHaveCount(2);
-  await chip(page, '51').click();
+  await tap(chip(page, '51'));
   await expect(rows(page)).toHaveCount(3);
   await expect(page.locator('.stop-chip.is-dimmed')).toHaveCount(0);
   await expect(page.locator('.stop-chips-clear')).toBeHidden();
@@ -91,10 +95,10 @@ test('tapping the only picked bus shows every bus again', async ({ page }) => {
 
 test('the x clears every pick at once', async ({ page }) => {
   await openFilterCard(page);
-  await chip(page, '51').click();
-  await chip(page, '404').click();
-  await chip(page, '404').click();   // 51 only
-  await page.getByRole('button', { name: 'Show all buses again' }).click();
+  await tap(chip(page, '51'));
+  await tap(chip(page, '404'));
+  await tap(chip(page, '404'));   // 51 only
+  await tap(page.getByRole('button', { name: 'Show all buses again' }));
   await expect(rows(page)).toHaveCount(3);
   await expect(page.locator('.stop-chip[aria-pressed="true"]')).toHaveCount(0);
   await expect(page.locator('.stop-chip.is-dimmed')).toHaveCount(0);
@@ -104,7 +108,7 @@ test('the x clears every pick at once', async ({ page }) => {
 test('a picked bus with nothing due says so', async ({ page }) => {
   await openMap(page, { arrivals: () => [] });
   await openStopCard(page, ORANMORE);
-  await chip(page, '51').click();
+  await tap(chip(page, '51'));
   await expect(page.locator('.stop-times-note')).toHaveText('No bus due soon on the route you picked.');
 });
 
@@ -113,10 +117,10 @@ test('a stop with many buses can show all their numbers, and each one can be pic
   await openStopCard(page, '8440B352011');   // The Clock Tower: 13 different bus numbers
   const before = await page.locator('.stop-chip').count();
   expect(before).toBe(10);
-  await page.locator('.stop-chips-more').click();
+  await tap(page.locator('.stop-chips-more'));
   await expect(page.locator('.stop-chip')).toHaveCount(13);
   await expect(page.locator('.stop-chips-more')).toHaveCount(0);
-  await page.locator('.stop-chip').last().click();
+  await tap(page.locator('.stop-chip').last());
   await expect(page.locator('.stop-chip[aria-pressed="true"]')).toHaveCount(1);
 });
 
