@@ -654,3 +654,136 @@
 }
 
 .tickets-empty a { margin-left: 0.3rem; margin-right: 0.3rem; }
+
+/* ---------- Swap From and To ---------- */
+
+.journey-stops-wrap {
+    position: relative;
+}
+
+.journey-stops-wrap .journey-stops {
+    padding-right: 3.4rem;     /* room for the swap button */
+}
+
+.swap-btn {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 2.8rem;
+    height: 2.8rem;
+    color: var(--card-ink);
+    background: #ffffff;
+    border: 1.5px solid #ddd0ea;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.swap-btn:hover {
+    background: var(--primary-color);
+}
+
+.swap-btn:focus-visible {
+    outline: 3px solid var(--card-ink);
+    outline-offset: 2px;
+}
+
+/* ---------- Passengers ---------- */
+
+.pax {
+    margin-top: 1rem;
+}
+
+.pax label {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.pax select {
+    width: 100%;
+    height: 2.9rem;
+    padding: 0 0.7rem;
+    font: inherit;
+    color: var(--text-main);
+    background: #ffffff;
+    border: 1.5px solid #ddd0ea;
+    border-radius: 12px;
+}
+
+.pax select:focus {
+    outline: none;
+    border-color: var(--card-ink);
+    box-shadow: 0 0 0 3px rgba(199, 174, 239, 0.45);
+}
+
+.pax select:disabled {
+    opacity: 0.6;
+}
+
+/* ---------- Used and expired tickets (closed until opened) ---------- */
+
+.no-valid {
+    margin: 0 0.2rem 0.8rem;
+    color: var(--text-muted);
+}
+
+.past-tickets {
+    margin-top: 1rem;
+}
+
+.past-tickets summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1rem;
+    font-weight: 700;
+    color: var(--card-ink);
+    background: var(--surface-color);
+    border-radius: 16px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.past-tickets summary::-webkit-details-marker {
+    display: none;
+}
+
+.past-tickets summary::after {
+    content: '';
+    margin-left: auto;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-right: 2.5px solid currentColor;
+    border-bottom: 2.5px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.15s;
+}
+
+.past-tickets[open] summary::after {
+    transform: rotate(-135deg);
+}
+
+.past-tickets summary:focus-visible {
+    outline: 3px solid var(--card-ink);
+    outline-offset: 2px;
+}
+
+.past-tickets .ticket-list {
+    margin-top: 0.6rem;
+}
+
+.past-count {
+    padding: 0.05rem 0.5rem;
+    font-size: 0.75rem;
+    color: #ffffff;
+    background: var(--text-muted);
+    border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .past-tickets summary::after { transition: none; }
+}

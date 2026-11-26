@@ -79,12 +79,20 @@
                     </div>
                 </div>
 
-                <ol class="journey-stops">
-                    <li><span class="journey-pin from" aria-hidden="true"></span>
-                        <div><small>From</small><strong id="j-from"></strong></div></li>
-                    <li><span class="journey-pin to" aria-hidden="true"></span>
-                        <div><small>To</small><strong id="j-to"></strong></div></li>
-                </ol>
+                <div class="journey-stops-wrap">
+                    <ol class="journey-stops">
+                        <li><span class="journey-pin from" aria-hidden="true"></span>
+                            <div><small>From</small><strong id="j-from"></strong></div></li>
+                        <li><span class="journey-pin to" aria-hidden="true"></span>
+                            <div><small>To</small><strong id="j-to"></strong></div></li>
+                    </ol>
+                    <button type="button" class="swap-btn" id="swap-journey" aria-label="Swap From and To">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M8 4v16M8 4 4 8M8 4l4 4M16 20V4M16 20l-4-4M16 20l4-4"/>
+                        </svg>
+                    </button>
+                </div>
 
                 <p class="journey-between" id="j-between"></p>
 
@@ -102,6 +110,11 @@
                     </div>
                     <p class="when-error" id="when-error" role="alert" hidden></p>
                 </fieldset>
+
+                <div class="pax">
+                    <label for="passengers">Passengers</label>
+                    <select id="passengers"></select>
+                </div>
 
                 <p class="ticket-price" id="ticket-price" hidden></p>
                 <button class="buy-btn" id="buy-btn" type="button" disabled>Buy ticket</button>
@@ -125,7 +138,13 @@
 
             <section class="my-tickets" id="my-tickets" aria-labelledby="my-tickets-title" hidden>
                 <h2 id="my-tickets-title">My tickets</h2>
+                <p class="no-valid" id="no-valid" hidden>You have no valid tickets right now.</p>
                 <ul class="ticket-list" id="ticket-list"></ul>
+
+                <details class="past-tickets" id="past-tickets" hidden>
+                    <summary>Used and expired tickets<span class="past-count" id="past-count"></span></summary>
+                    <ul class="ticket-list" id="past-list"></ul>
+                </details>
             </section>
 
             <section class="tickets-empty" id="tickets-empty">

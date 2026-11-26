@@ -3,11 +3,11 @@
 //
 //   GET  ticket.php                          -> ticket price for this user's card type, balance, card status,
 //                                               the times a ticket can be bought for, and the user's tickets
-//   POST ticket.php {action:"buy", route, travel_date, travel_time, idempotency_key}
-//        -> takes the price off users.wallet_balance and saves the ticket with its QR token.
+//   POST ticket.php {action:"buy", route, travel_date, travel_time, passengers, idempotency_key}
+//        -> takes the price (one fare for each passenger) off users.wallet_balance and saves the ticket with its QR token.
 //           Declined if the card isn't active, the balance is too low, or the date/time isn't available.
 //
-// The price is always worked out here from the card type, never taken from the request.
+// The price is always worked out here from the card type and the number of passengers, never taken from the request.
 // A ticket is for one date and time (Irish time) and is valid for 90 minutes from then.
 
 session_start();
@@ -30,6 +30,7 @@ const LAST_DEPARTURE   = '23:00';
 const DEPARTURE_STEP   = 15;    // minutes
 const DAYS_AHEAD       = 30;
 const VALID_MINUTES    = 90;    // a ticket can be used for this long after its time
+const MAX_PASSENGERS   = 10;    // people one ticket can cover
 
 function respond(array $data, int $status = 200): void {
     http_response_code($status);
@@ -95,7 +96,7 @@ function user_tickets(PDO $pdo, int $userId, DateTimeImmutable $now): array {
         ->execute([$userId, $cutoff]);
 
     $stmt = $pdo->prepare(
-        'SELECT ticket_id, qr_token, route, travel_at, status, purchased_at FROM tickets
+        'SELECT ticket_id, qr_token, route, travel_at, passengers, status, purchased_at FROM tickets
          WHERE user_id = ? ORDER BY travel_at IS NULL, travel_at DESC, ticket_id DESC LIMIT 20'
     );
     $stmt->execute([$userId]);
@@ -104,6 +105,7 @@ function user_tickets(PDO $pdo, int $userId, DateTimeImmutable $now): array {
             'id'        => (int) $t['ticket_id'],
             'route'     => $t['route'],
             'travel_at' => $t['travel_at'],
+            'passengers' => (int) $t['passengers'],
             'status'    => $t['status'],
             // Only a ticket that can still be used gets its QR code
             'qr_token'  => $t['status'] === 'active' ? $t['qr_token'] : null,
@@ -117,7 +119,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'logged_in'   => true,
         'card_type'   => $user['card_type'],
         'card_status' => $user['card_status'],
-        'price'       => $priceCents / 100,
+        'price'       => $priceCents / 100,   // for one passenger
+        'max_passengers' => MAX_PASSENGERS,
         'balance'     => (float) $user['wallet_balance'],
         'times'       => [
             'first'      => FIRST_DEPARTURE,
@@ -153,10 +156,17 @@ if ($route === '' || mb_strlen($route) > 100) {
 if (!is_string($key) || !preg_match('/^[A-Za-z0-9-]{8,64}$/', $key)) {
     respond(['success' => false, 'error' => 'Missing or invalid idempotency key'], 400);
 }
+// One ticket for 1 to MAX_PASSENGERS people. Left out means one.
+$passengers = $body['passengers'] ?? 1;
+if (!is_int($passengers) || $passengers < 1 || $passengers > MAX_PASSENGERS) {
+    respond(['success' => false, 'error' => 'Choose between 1 and ' . MAX_PASSENGERS . ' passengers'], 400);
+}
+$totalCents = $priceCents * $passengers;
+
 [$travelAt, $timeError] = travel_time($body['travel_date'] ?? null, $body['travel_time'] ?? null, $now, $tz);
 
 $ref    = 'ticket_' . $key;   // stored in transactions.stripe_payment_id, which is unique
-$amount = number_format($priceCents / 100, 2, '.', '');
+$amount = number_format($totalCents / 100, 2, '.', '');
 
 try {
     $pdo->beginTransaction();
@@ -172,7 +182,7 @@ try {
     $dupRow = $dup->fetch();
     if ($dupRow) {
         $pdo->rollBack();
-        respond(['success' => true, 'replayed' => true, 'price' => $priceCents / 100,
+        respond(['success' => true, 'replayed' => true, 'price' => $totalCents / 100,
                  'balance' => (float) $balanceRow['wallet_balance'], 'ticket_id' => (int) $dupRow['ticket_id']]);
     }
 
@@ -180,26 +190,26 @@ try {
     if ($timeError) {
         $pdo->rollBack();
         respond(['success' => false, 'declined' => 'time_unavailable', 'error' => $timeError,
-                 'price' => $priceCents / 100, 'balance' => (float) $balanceRow['wallet_balance']]);
+                 'price' => $totalCents / 100, 'balance' => (float) $balanceRow['wallet_balance']]);
     }
 
     if ($balanceRow['card_status'] !== 'active') {
         $pdo->rollBack();
-        respond(['success' => false, 'declined' => 'card_not_active', 'price' => $priceCents / 100,
+        respond(['success' => false, 'declined' => 'card_not_active', 'price' => $totalCents / 100,
                  'balance' => (float) $balanceRow['wallet_balance'],
                  'error' => 'Your card is not active, so it cannot be used to pay.']);
     }
-    if (round((float) $balanceRow['wallet_balance'] * 100) < $priceCents) {
+    if (round((float) $balanceRow['wallet_balance'] * 100) < $totalCents) {
         $pdo->rollBack();
-        respond(['success' => false, 'declined' => 'insufficient_balance', 'price' => $priceCents / 100,
+        respond(['success' => false, 'declined' => 'insufficient_balance', 'price' => $totalCents / 100,
                  'balance' => (float) $balanceRow['wallet_balance'],
                  'error' => 'Not enough balance on your Hop Card.']);
     }
 
     $ticket = $pdo->prepare(
-        "INSERT INTO tickets (user_id, qr_token, route, travel_at, status) VALUES (?, ?, ?, ?, 'active')"
+        "INSERT INTO tickets (user_id, qr_token, route, travel_at, passengers, status) VALUES (?, ?, ?, ?, ?, 'active')"
     );
-    $ticket->execute([$userId, bin2hex(random_bytes(16)), $route, $travelAt->format('Y-m-d H:i:s')]);
+    $ticket->execute([$userId, bin2hex(random_bytes(16)), $route, $travelAt->format('Y-m-d H:i:s'), $passengers]);
     $ticketId = (int) $pdo->lastInsertId();
 
     $tx = $pdo->prepare(
@@ -219,6 +229,6 @@ try {
 
 $bal = $pdo->prepare('SELECT wallet_balance FROM users WHERE user_id = ?');
 $bal->execute([$userId]);
-respond(['success' => true, 'replayed' => false, 'price' => $priceCents / 100,
+respond(['success' => true, 'replayed' => false, 'price' => $totalCents / 100,
          'balance' => (float) $bal->fetchColumn(), 'ticket_id' => $ticketId,
          'tickets' => user_tickets($pdo, $userId, $now)]);

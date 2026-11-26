@@ -1654,7 +1654,8 @@ button.stop-chips-more {
 .stop-chips-clear[hidden] { display: none; }
 
 /* Buy a ticket for the picked bus */
-.option-ticket {
+.option-ticket,
+.route-ticket-go {
     display: block;
     width: 100%;
     margin-top: 0.4rem;
@@ -1668,7 +1669,53 @@ button.stop-chips-more {
     cursor: pointer;
 }
 
-.option-ticket:focus-visible {
+.option-ticket:focus-visible,
+.route-ticket-go:focus-visible {
     outline: 3px solid var(--card-ink);
     outline-offset: 2px;
+}
+
+/* Get a ticket on the route that is shown */
+.route-ticket {
+    margin-top: 0.9rem;
+    padding: 0.9rem;
+    background: var(--surface-color);
+    border-radius: 14px;
+}
+
+.route-ticket-title {
+    margin: 0 0 0.6rem;
+    font-weight: 700;
+    color: var(--card-ink);
+}
+
+.route-ticket-row {
+    display: grid;
+    grid-template-columns: 3.2rem 1fr;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.route-ticket-row label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.route-ticket-row select {
+    width: 100%;
+    min-width: 0;
+    height: 2.6rem;
+    padding: 0 0.6rem;
+    font: inherit;
+    color: var(--text-main);
+    background: #ffffff;
+    border: 1.5px solid #ddd0ea;
+    border-radius: 10px;
+}
+
+.route-ticket-between {
+    margin: 0.1rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
 }

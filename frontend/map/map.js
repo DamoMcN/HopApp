@@ -738,7 +738,8 @@ async function loadStopTimes(container, stopId, filter) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 25000);
     try {
-        const response = await fetch(CONFIG.STOP_TIMES_URL + '?stop_id=' + encodeURIComponent(stopId), { signal: controller.signal });
+        // More than the 5 that are shown, so picking a bus that is not among the next few still finds it
+        const response = await fetch(CONFIG.STOP_TIMES_URL + '?stop_id=' + encodeURIComponent(stopId) + '&limit=40', { signal: controller.signal });
         if (!response.ok) throw new Error('HTTP ' + response.status);
         const data = await response.json();
         if (!data || !Array.isArray(data.arrivals)) throw new Error('Unexpected reply');
@@ -1691,7 +1692,7 @@ async function getStopTimes(stopId) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-        const response = await fetch(CONFIG.STOP_TIMES_URL + '?stop_id=' + encodeURIComponent(stopId), { signal: controller.signal });
+        const response = await fetch(CONFIG.STOP_TIMES_URL + '?stop_id=' + encodeURIComponent(stopId) + '&limit=40', { signal: controller.signal });
         if (!response.ok) throw new Error('HTTP ' + response.status);
         const data = await response.json();
         if (!data || !Array.isArray(data.arrivals)) throw new Error('Unexpected reply');
@@ -1837,17 +1838,21 @@ function renderOptions() {
 const TICKET_DRAFT_KEY = 'hop.ticketDraft';
 
 function goToTicket(opt) {
-    const p = opt.feature.properties;
+    sendToTickets(opt.feature, opt.fromStop, opt.toStop, opt.stopsBetween);
+}
+
+function sendToTickets(feature, fromStop, toStop, stopsBetween) {
+    const p = feature.properties;
     const draft = {
         routeId: String(p.route_id || ''),
         shortName: String(p.short_name || '').slice(0, 20),
         longName: String(p.long_name || p.display_name || '').slice(0, 200),
         agency: String(p.agency_name || '').slice(0, 120),
-        fromId: String(opt.fromStop.id),
-        fromName: String(opt.fromStop.name).slice(0, 160),
-        toId: String(opt.toStop.id),
-        toName: String(opt.toStop.name).slice(0, 160),
-        stopsBetween: opt.stopsBetween
+        fromId: String(fromStop.id),
+        fromName: String(fromStop.name).slice(0, 160),
+        toId: String(toStop.id),
+        toName: String(toStop.name).slice(0, 160),
+        stopsBetween: stopsBetween
     };
     try {
         sessionStorage.setItem(TICKET_DRAFT_KEY, JSON.stringify(draft));
@@ -1964,8 +1969,43 @@ function redrawJourney(fit) {
 
 // ---------- One route, picked from the search ----------
 
+// The stops of the shown route in two lists, to choose where you get on and off
+function setupRouteTicket(feature, stops) {
+    const box = $('route-ticket');
+    if (stops.length < 2) { box.hidden = true; return; }
+    const from = $('rt-from');
+    const to = $('rt-to');
+    from.innerHTML = '';
+    stops.slice(0, -1).forEach((stop, i) => from.add(new Option((i + 1) + '. ' + stop.name, String(i))));
+    from.value = '0';
+
+    const between = () => {
+        const n = Number(to.value) - Number(from.value);
+        $('rt-between').textContent = n + (n === 1 ? ' stop' : ' stops') + ' on this journey.';
+    };
+    // To can only be a stop after From
+    const fillTo = () => {
+        const previous = Number(to.value);
+        const start = Number(from.value);
+        to.innerHTML = '';
+        for (let i = start + 1; i < stops.length; i++) to.add(new Option((i + 1) + '. ' + stops[i].name, String(i)));
+        to.value = String(previous > start && previous < stops.length ? previous : stops.length - 1);
+        between();
+    };
+    from.onchange = fillTo;
+    to.onchange = between;
+    $('rt-go').onclick = () => {
+        const a = Number(from.value);
+        const b = Number(to.value);
+        if (stops[a] && stops[b] && b > a) sendToTickets(feature, stops[a], stops[b], b - a);
+    };
+    fillTo();
+    box.hidden = false;
+}
+
 async function showRoute(feature) {
     const token = ++routeToken;
+    $('route-ticket').hidden = true;
     planToken++;
     trip.dest = null;
     trip.origin = null;
@@ -2003,6 +2043,7 @@ async function showRoute(feature) {
     }).addTo(journeyLayer);
 
     const stops = same.reduce((a, f) => (f.properties.stops.length > a.length ? f.properties.stops : a), []);
+    setupRouteTicket(feature, stops);
     const points = [];
     stops.forEach((stop, i) => {
         const marker = L.circleMarker([stop.lat, stop.lon], {
@@ -2019,7 +2060,11 @@ async function showRoute(feature) {
 // Opening map.html?mode=tickets (from the tickets page) lands on the search bar
 function onRoutesLoaded() {
     const requested = new URLSearchParams(window.location.search).get('mode');
-    if (requested === 'tickets') $('search-input').focus();
+    if (requested === 'tickets') {
+        $('search-input').focus();
+        const hint = document.querySelector('.idle-hint');
+        if (hint) hint.textContent = 'Search a route number to choose where you get on and off, or search a place to see which bus gets you there. Then press Get a ticket.';
+    }
     updateAccessStatus();
     if (accessibleOnly()) expandSheet();   // so the ticked box is seen
 }

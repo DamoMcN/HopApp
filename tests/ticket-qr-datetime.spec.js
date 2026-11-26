@@ -115,6 +115,7 @@ test('Expired and used tickets have no QR code', async ({ page }) => {
     { id: 1, route: '404 Newcastle → Eyre Square', travel_at: '2026-11-18 09:00:00', status: 'expired', qr_token: null },
     { id: 2, route: '401 Salthill → Eyre Square', travel_at: '2026-11-17 08:30:00', status: 'used', qr_token: null }
   ] });
+  await page.locator('#past-tickets summary').click();   // used and expired tickets sit in a closed section
   await expect(page.locator('.ticket-item svg')).toHaveCount(0);
   await page.locator('.ticket-item').first().click();
   await expect(page.locator('#qr-code')).toBeHidden();
