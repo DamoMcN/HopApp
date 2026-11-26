@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS `tickets` (
   `qr_token` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `route` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `travel_at` datetime DEFAULT NULL COMMENT 'Irish local time the ticket is for. Valid for 90 minutes from then.',
+  `passengers` tinyint unsigned NOT NULL DEFAULT 1 COMMENT 'How many people the ticket is for.',
   `status` enum('active','used','expired') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `purchased_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `used_at` timestamp NULL DEFAULT NULL,

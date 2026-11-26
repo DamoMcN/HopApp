@@ -14,7 +14,7 @@
 // GET /api/vehicles?route_id=XYZ  ->  [{ id, lat, lon, speed, timestamp }, ...]
 //   route_id is optional; leave it out to get every vehicle.
 //
-// GET /api/stop-times?stop_id=ABC ->  { now, arrivals: [{ routeId, tripId, time, delay }, ...] }
+// GET /api/stop-times?stop_id=ABC[&limit=N] ->  { now, arrivals: [{ routeId, tripId, time, delay }, ...] }
 //   The next buses at one stop, from the NTA trip-updates feed. time is seconds since 1970 and
 //   delay is seconds late (negative = early). Either can be null when the feed doesn't say.
 
@@ -150,7 +150,10 @@ app.get('/api/stop-times', async (req, res) => {
     try {
         const byStop = await loadTripUpdates();
         const now = Math.floor(Date.now() / 1000);
-        res.json({ now: now, arrivals: arrivalsFor(byStop, stopId, now, 10) });
+        // limit is optional (default 10). The stop card asks for more so picking a bus that is not among the
+        // next few still finds it.
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 40);
+        res.json({ now: now, arrivals: arrivalsFor(byStop, stopId, now, limit) });
     } catch (error) {
         console.error('NTA trip updates error:', error.message);
         res.status(502).json({ error: 'Live times are not available right now' });

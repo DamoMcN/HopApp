@@ -99,6 +99,17 @@ document.getElementById('clear-journey').addEventListener('click', () => {
     prepareBuilder();
 });
 
+// Travelling the other way: From and To change places
+byId('swap-journey').addEventListener('click', () => {
+    const draft = readDraft();
+    if (!draft) return;
+    const swapped = Object.assign({}, draft, {
+        fromId: draft.toId, fromName: draft.toName, toId: draft.fromId, toName: draft.fromName
+    });
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(swapped)); } catch (e) { return; }
+    show(readDraft());
+});
+
 show(readDraft());
 // A journey from the map opens on the Buy a ticket tab, otherwise on My tickets
 setTab(readDraft() ? 'buy' : 'tickets', false);
@@ -138,8 +149,8 @@ async function loadFare() {
         }
         if (typeof data.price !== 'number') throw new Error(data.error || 'No price');
         fare = data;
-        $('ticket-price').textContent = 'Ticket price: ' + money.format(fare.price) + ' (' + fare.card_type + ' fare)';
-        $('ticket-price').hidden = false;
+        fillPassengers();
+        updatePrice();
         setTickets(data.tickets);
         lastTimes = data.times;
         setupWhen(data.times);
@@ -149,6 +160,40 @@ async function loadFare() {
         $('ticket-price').hidden = false;
     }
 }
+
+// How many people the ticket is for. The price is for one person; the server works out the total.
+function passengerCount() {
+    const n = Number($('passengers').value);
+    return Number.isInteger(n) && n >= 1 ? n : 1;
+}
+
+function totalPrice() {
+    return fare ? Math.round(fare.price * passengerCount() * 100) / 100 : 0;
+}
+
+function fillPassengers() {
+    const select = $('passengers');
+    const max = fare && Number.isInteger(fare.max_passengers) ? fare.max_passengers : 10;
+    const previous = select.value || '1';
+    select.innerHTML = '';
+    for (let i = 1; i <= max; i++) select.add(new Option(i === 1 ? '1 passenger' : i + ' passengers', String(i)));
+    select.value = Number(previous) <= max ? previous : '1';
+}
+
+function updatePrice() {
+    if (!fare) return;
+    const n = passengerCount();
+    $('ticket-price').textContent = n === 1
+        ? 'Ticket price: ' + money.format(fare.price) + ' (' + fare.card_type + ' fare)'
+        : 'Ticket price: ' + money.format(totalPrice()) + ' (' + n + ' × ' + money.format(fare.price) + ', ' + fare.card_type + ' fare)';
+    $('ticket-price').hidden = false;
+}
+
+function passengersText(count) {
+    return count > 1 ? ' · ' + count + ' passengers' : '';
+}
+
+$('passengers').addEventListener('change', updatePrice);
 
 function showResult(ok, title, text, offerTopUp) {
     $('pay-review').hidden = true;
@@ -165,12 +210,12 @@ function openPayment() {
     const draft = readDraft();
     if (!draft || !fare || !checkWhen()) return;
     $('pay-title').textContent = 'Confirm payment';
-    $('pay-journey').textContent = journeyLabel(draft);
+    $('pay-journey').textContent = journeyLabel(draft) + passengersText(passengerCount());
     $('pay-when').textContent = formatWhen(chosenWhen());
     $('pay-qr').hidden = true;
-    $('pay-price').textContent = money.format(fare.price);
+    $('pay-price').textContent = money.format(totalPrice());
     $('pay-balance').textContent = money.format(fare.balance);
-    $('pay-after').textContent = money.format(fare.balance - fare.price);
+    $('pay-after').textContent = money.format(fare.balance - totalPrice());
     $('pay-review').hidden = false;
     $('pay-result').hidden = true;
     $('pay-confirm').disabled = false;
@@ -190,7 +235,7 @@ async function confirmPayment() {
             body: JSON.stringify({
                 action: 'buy', route: journeyLabel(draft),
                 travel_date: $('travel-date').value, travel_time: $('travel-time').value,
-                idempotency_key: pendingKey
+                passengers: passengerCount(), idempotency_key: pendingKey
             })
         });
         const data = await response.json();
@@ -203,6 +248,8 @@ async function confirmPayment() {
             try { sessionStorage.removeItem(DRAFT_KEY); } catch (e) { /* nothing to clear */ }
             show(null);
             resetBuilder();
+            $('passengers').value = '1';
+            updatePrice();
             setTab('tickets', false);   // behind the pop-up: the new ticket is waiting in My tickets
             if (Array.isArray(data.tickets)) setTickets(data.tickets);
             else loadFare();
@@ -359,41 +406,48 @@ function sortTickets(list) {
     return valid.concat(old);
 }
 
+function renderTicket(t) {
+    const li = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ticket-item is-' + t.status;
+
+    const info = document.createElement('div');
+    info.className = 'ticket-info';
+    const route = document.createElement('strong');
+    route.textContent = t.route;
+    const when = document.createElement('span');
+    when.textContent = formatWhen(t.travel_at) + passengersText(t.passengers);
+    const status = document.createElement('span');
+    status.className = 'ticket-status is-' + t.status;
+    status.textContent = STATUS_TEXT[t.status] || t.status;
+    info.append(route, when, status);
+    button.appendChild(info);
+
+    if (t.qr_token) {
+        const thumb = document.createElement('div');
+        thumb.className = 'qr-box qr-thumb';
+        drawQr(thumb, t.qr_token, 'QR code');
+        thumb.setAttribute('aria-hidden', 'true');
+        button.appendChild(thumb);
+        button.setAttribute('aria-label', 'Show QR code: ' + t.route + ', ' + formatWhen(t.travel_at));
+    }
+    button.addEventListener('click', () => openTicket(t));
+    li.appendChild(button);
+    return li;
+}
+
+// Valid tickets are listed first; used and expired ones wait in a closed section underneath
 function setTickets(list) {
     tickets = Array.isArray(list) ? sortTickets(list) : [];
-    const ul = $('ticket-list');
-    ul.innerHTML = '';
+    const valid = tickets.filter((t) => t.status === 'active');
+    const past = tickets.filter((t) => t.status !== 'active');
 
-    tickets.forEach((t) => {
-        const li = document.createElement('li');
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'ticket-item is-' + t.status;
-
-        const info = document.createElement('div');
-        info.className = 'ticket-info';
-        const route = document.createElement('strong');
-        route.textContent = t.route;
-        const when = document.createElement('span');
-        when.textContent = formatWhen(t.travel_at);
-        const status = document.createElement('span');
-        status.className = 'ticket-status is-' + t.status;
-        status.textContent = STATUS_TEXT[t.status] || t.status;
-        info.append(route, when, status);
-        button.appendChild(info);
-
-        if (t.qr_token) {
-            const thumb = document.createElement('div');
-            thumb.className = 'qr-box qr-thumb';
-            drawQr(thumb, t.qr_token, 'QR code');
-            thumb.setAttribute('aria-hidden', 'true');
-            button.appendChild(thumb);
-            button.setAttribute('aria-label', 'Show QR code: ' + t.route + ', ' + formatWhen(t.travel_at));
-        }
-        button.addEventListener('click', () => openTicket(t));
-        li.appendChild(button);
-        ul.appendChild(li);
-    });
+    $('ticket-list').replaceChildren(...valid.map(renderTicket));
+    $('past-list').replaceChildren(...past.map(renderTicket));
+    $('no-valid').hidden = valid.length > 0 || tickets.length === 0;
+    $('past-tickets').hidden = past.length === 0;
+    $('past-count').textContent = String(past.length);
 
     $('my-tickets').hidden = tickets.length === 0;
     updateEmpty();
@@ -404,7 +458,7 @@ const qrDialog = $('qr-dialog');
 
 function openTicket(t) {
     $('qr-route').textContent = t.route;
-    $('qr-when').textContent = formatWhen(t.travel_at) + ' · ' + (STATUS_TEXT[t.status] || t.status);
+    $('qr-when').textContent = formatWhen(t.travel_at) + passengersText(t.passengers) + ' · ' + (STATUS_TEXT[t.status] || t.status);
     const box = $('qr-code');
     if (t.qr_token) {
         drawQr(box, t.qr_token, 'QR code for your ticket');
