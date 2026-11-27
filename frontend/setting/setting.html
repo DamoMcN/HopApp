@@ -21,6 +21,13 @@
     </header>
 
     <main class="settings-page">
+        <div class="settings-search" role="search">
+            <label class="sr-only" for="settings-search">Search settings</label>
+            <input type="search" id="settings-search" placeholder="Search settings, e.g. freeze, email, top up" autocomplete="off">
+            <ul id="settings-search-results" class="settings-results" aria-label="Matching settings" hidden></ul>
+            <p id="settings-search-empty" class="settings-results-empty" role="status" hidden></p>
+        </div>
+
         <p id="settings-message" class="settings-message" role="status" aria-live="polite"></p>
 
         <section class="settings-panel" aria-labelledby="profile-heading">
@@ -63,5 +70,6 @@
 
     <script src="../shared/js/menu.js?v=20261122-accessible-nav"></script>
     <script src="setting.js?v=20261112-profile-links"></script>
+    <script src="settings-search.js"></script>
 </body>
 </html>
