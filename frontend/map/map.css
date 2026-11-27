@@ -1684,9 +1684,40 @@ button.stop-chips-more {
 }
 
 .route-ticket-title {
-    margin: 0 0 0.6rem;
+    display: flex;
+    align-items: center;
+    margin: 0;
     font-weight: 700;
     color: var(--card-ink);
+    cursor: pointer;
+    list-style: none;
+}
+
+.route-ticket-title::-webkit-details-marker {
+    display: none;
+}
+
+.route-ticket-title::after {
+    content: '';
+    margin-left: auto;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-right: 2.5px solid currentColor;
+    border-bottom: 2.5px solid currentColor;
+    transform: rotate(45deg);
+}
+
+.route-ticket[open] .route-ticket-title {
+    margin-bottom: 0.6rem;
+}
+
+.route-ticket[open] .route-ticket-title::after {
+    transform: rotate(-135deg);
+}
+
+.route-ticket-title:focus-visible {
+    outline: 3px solid var(--card-ink);
+    outline-offset: 2px;
 }
 
 .route-ticket-row {

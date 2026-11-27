@@ -142,6 +142,9 @@ test('A route on the map lets you choose From and To and carries them to the tic
 
   await page.evaluate(() => showRoute(allRoutes.find((f) => String(f.properties.short_name) === '401' && f.properties.stops.length > 3)));
   await expect(page.locator('#route-ticket')).toBeVisible();
+  await expect(page.locator('#route-ticket')).not.toHaveAttribute('open', '');   // closed at first
+  await expect(page.locator('#rt-go')).toBeHidden();
+  await page.locator('#route-ticket summary').click();
   await expect(page.locator('#rt-from option').first()).toContainText('1.');
 
   await page.locator('#rt-from').selectOption('0');
@@ -168,6 +171,7 @@ test('To only offers stops after From', async ({ page }) => {
   await page.waitForFunction(() => typeof allRoutes !== 'undefined' && allRoutes.length > 0, null, { timeout: 20000 });
   await page.evaluate(() => showRoute(allRoutes.find((f) => String(f.properties.short_name) === '401' && f.properties.stops.length > 5)));
   await expect(page.locator('#route-ticket')).toBeVisible();
+  await page.locator('#route-ticket summary').click();
 
   const total = await page.locator('#rt-from option').count();
   await page.locator('#rt-from').selectOption(String(total - 1));   // the last stop that can be a From

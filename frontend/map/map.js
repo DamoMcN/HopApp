@@ -2006,6 +2006,7 @@ function setupRouteTicket(feature, stops) {
 async function showRoute(feature) {
     const token = ++routeToken;
     $('route-ticket').hidden = true;
+    $('route-ticket').open = false;   // closed until the person opens it
     planToken++;
     trip.dest = null;
     trip.origin = null;

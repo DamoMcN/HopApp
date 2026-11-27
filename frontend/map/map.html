@@ -160,8 +160,8 @@
                     </div>
 
                     <!-- Pick the stops you ride between and take the journey to the tickets page -->
-                    <div class="route-ticket" id="route-ticket" hidden>
-                        <p class="route-ticket-title">Get a ticket on this route</p>
+                    <details class="route-ticket" id="route-ticket" hidden>
+                        <summary class="route-ticket-title">Get a ticket on this route</summary>
                         <div class="route-ticket-row">
                             <label for="rt-from">From</label>
                             <select id="rt-from"></select>
@@ -172,7 +172,7 @@
                         </div>
                         <p class="route-ticket-between" id="rt-between"></p>
                         <button type="button" id="rt-go" class="route-ticket-go">Get a ticket for this journey</button>
-                    </div>
+                    </details>
                   </div>
 
                   <p id="live-status" class="live-status" role="status" aria-live="polite" hidden></p>
