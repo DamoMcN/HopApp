@@ -19,6 +19,8 @@ const MENU_ITEMS = [
 const SUPPORT_ITEM = { label: 'Help & Support', href: '../support/support.html', icon: '?' };
 
 async function logout() {
+    // The bar and start page are the person's own: don't leave them behind for the next person to log in
+    try { localStorage.removeItem('hop.nav'); } catch (error) { /* nothing to forget */ }
     try {
         await fetch('../../backend/auth/logout.php');
     } catch (error) {

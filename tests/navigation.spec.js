@@ -95,9 +95,9 @@ test('A bad saved bar layout can never break the bar', async ({ page }) => {
 
   expect(result.nothing).toEqual(defaults);
   expect(result.junk).toEqual(defaults);
-  expect(result.unknownTabs).toEqual({ tabs: ['card', 'map'], startPage: 'card' });
-  expect(result.tooFew).toEqual(defaults);
-  expect(result.duplicates).toEqual({ tabs: ['card', 'map'], startPage: 'card' });   // 'home' means card
+  expect(result.unknownTabs).toEqual({ tabs: ['topup', 'card', 'map'], startPage: 'card' });   // Top Up is always kept
+  expect(result.tooFew).toEqual({ tabs: ['topup', 'card'], startPage: 'card' });   // Card and Top Up are always added back
+  expect(result.duplicates).toEqual({ tabs: ['topup', 'card', 'map'], startPage: 'card' });   // 'home' means card
   expect(result.allTabs).toEqual({ tabs: ['card', 'map', 'tickets', 'topup', 'support'], startPage: 'topup' });
   expect(result.badStartPage.startPage).toBe('card');
 });
@@ -106,6 +106,6 @@ test('A custom bar layout is drawn in the saved order', async ({ page }) => {
   await page.goto(TICKETS);
   await page.evaluate(() => window.HopNav.init({ tabs: ['support', 'tickets', 'topup'], startPage: 'map' }));
   await expect(page.locator('.bottom-nav')).toHaveCount(1);   // re-drawn, not duplicated
-  await expect(page.locator('.bottom-nav .bottom-nav-item')).toHaveText(['Help', 'Tickets', 'Top Up']);
+  await expect(page.locator('.bottom-nav .bottom-nav-item')).toHaveText(['Card', 'Help', 'Tickets', 'Top Up']);
   expect(await page.evaluate(() => window.HopNav.startPageHref())).toBe('../map/map.html');
 });
