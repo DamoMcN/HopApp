@@ -185,10 +185,10 @@ test('The preview marks the start page when it is in the bar', async ({ page }) 
 for (const tabs of [['card', 'topup'], ['card', 'topup', 'map'], ['card', 'topup', 'map', 'tickets', 'support']]) {
   test('The bar with ' + tabs.length + ' buttons fills its whole width', async ({ page }) => {
     await openCustomise(page, { tabs });
-    await expect(page.locator('.bottom-nav-inner .bottom-nav-item')).toHaveCount(tabs.length);
-    const widths = await page.locator('.bottom-nav-inner .bottom-nav-item').evaluateAll(
+    await expect(page.locator('.bottom-nav .bottom-nav-item')).toHaveCount(tabs.length);
+    const widths = await page.locator('.bottom-nav .bottom-nav-item').evaluateAll(
       items => items.map(i => i.getBoundingClientRect().width));
-    const inner = await page.locator('.bottom-nav-inner').evaluate(e => e.getBoundingClientRect().width);
+    const inner = await page.locator('.bottom-nav .bottom-nav-inner').evaluate(e => e.getBoundingClientRect().width);
     expect(widths.reduce((a, b) => a + b, 0)).toBeGreaterThan(inner - 2);
     widths.forEach(w => expect(Math.abs(w - widths[0])).toBeLessThan(1.5));
   });
