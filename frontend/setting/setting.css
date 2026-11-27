@@ -139,6 +139,18 @@
 .profile-details a { color: inherit; text-decoration: underline; text-decoration-color: var(--text-muted); text-underline-offset: 0.15em; }
 .profile-details a:hover { color: var(--primary-color, #6b3fa0); }
 
+/* A link that looks like the settings buttons (Customise app) */
+a.settings-button {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+}
+
+a.settings-button:focus-visible {
+    outline: 3px solid var(--card-ink);
+    outline-offset: 2px;
+}
+
 /* ---------- Search in Settings (SCRUM-127) ---------- */
 
 .sr-only {

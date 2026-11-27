@@ -392,6 +392,39 @@ async function submitSignup() {
 // No card selection here: the card type was saved at signup
 // and login.php loads it from the database.
 
+// The page each person chose to open first (Settings > Customise app). The card page if they never did.
+const START_PAGES = {
+    card: '../card/card.html',
+    topup: '../topup/topup.html',
+    map: '../map/map.html',
+    tickets: '../tickets/tickets.html',
+    support: '../support/support.html'
+};
+
+async function startPageUrl() {
+    try {
+        const response = await fetch('../../backend/auth/nav_settings.php', { cache: 'no-store' });
+        if (!response.ok) return START_PAGES.card;
+        const data = await response.json();
+        return Object.prototype.hasOwnProperty.call(START_PAGES, data.start_page) ? START_PAGES[data.start_page] : START_PAGES.card;
+    } catch (error) {
+        return START_PAGES.card;
+    }
+}
+
+// Opening the app while still logged in goes straight to the chosen start page
+(async function openStartPageIfLoggedIn() {
+    if (!document.getElementById('login-form')) return;   // only the login page
+    try {
+        const response = await fetch('../../backend/auth/session.php', { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data && data.logged_in === true) window.location.href = await startPageUrl();
+    } catch (error) {
+        /* not logged in, or offline: stay on the login page */
+    }
+})();
+
 async function handleLogin(event) {
     event.preventDefault();
 
@@ -411,7 +444,7 @@ async function handleLogin(event) {
         const data = await readJson(response);
 
         if (data.success) {
-            window.location.href = '../card/card.html';
+            window.location.href = await startPageUrl();
             return; // page is navigating away, leave the button as is
         }
 

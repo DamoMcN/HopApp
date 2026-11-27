@@ -1,0 +1,350 @@
+/* Customise app: choose the bottom bar and the start page (customise.js) */
+
+.customise-page {
+    width: 100%;
+    max-width: var(--content-width);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-bottom: 1rem;
+}
+
+/* ---------- Two tabs ---------- */
+.customise-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--surface-color);
+    border-radius: 14px;
+}
+
+.customise-tab {
+    flex: 1;
+    min-height: 44px;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #565e6e;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.customise-tab[aria-selected="true"] {
+    color: var(--card-ink);
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(61, 42, 92, 0.18);
+}
+
+.customise-tab:focus-visible,
+.nav-switch:focus-visible,
+.nav-move:focus-visible,
+.start-option:focus-visible,
+.customise-save:focus-visible,
+.customise-reset:focus-visible {
+    outline: 3px solid var(--card-ink);
+    outline-offset: 2px;
+}
+
+/* ---------- Preview ---------- */
+.customise-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--surface-color);
+    border-radius: 14px;
+}
+
+.customise-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.customise-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #565e6e;
+}
+
+.nav-preview .bottom-nav-inner {
+    max-width: none;
+    height: var(--nav-h);
+    padding-bottom: 0;
+    overflow: hidden;
+    border: 1px solid rgba(61, 42, 92, 0.12);
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+/* ---------- Rows ---------- */
+.nav-rows {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.nav-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 52px;
+    padding: 0.35rem 0.5rem 0.35rem 0.6rem;
+    background: var(--surface-color);
+    border-radius: 12px;
+}
+
+.nav-row.is-dragging {
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 6px 18px rgba(61, 42, 92, 0.3);
+    background: #ffffff;
+}
+
+.nav-grip {
+    flex: none;
+    display: flex;
+    width: 24px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    color: #7d7590;
+    cursor: grab;
+    touch-action: none;
+}
+
+.nav-row.is-dragging .nav-grip {
+    cursor: grabbing;
+}
+
+.nav-row-icon {
+    flex: none;
+    display: flex;
+    color: var(--card-ink);
+}
+
+.nav-row-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.nav-row-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.nav-lock {
+    flex: none;
+    display: flex;
+    color: #565e6e;
+}
+
+.nav-lock svg {
+    width: 16px;
+    height: 16px;
+}
+
+.nav-move {
+    flex: none;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--card-ink);
+    background: #ffffff;
+    border: 1.5px solid rgba(61, 42, 92, 0.2);
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.nav-move svg {
+    width: 18px;
+    height: 18px;
+}
+
+.nav-move:disabled {
+    color: #9a93a6;
+    cursor: default;
+}
+
+.nav-switch {
+    flex: none;
+    position: relative;
+    width: 46px;
+    height: 28px;
+    background: #c9c2d4;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.nav-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    background: #ffffff;
+    border-radius: 50%;
+    transition: transform 0.15s;
+}
+
+.nav-switch[aria-checked="true"] {
+    background: var(--card-ink);
+}
+
+.nav-switch[aria-checked="true"]::after {
+    transform: translateX(18px);
+}
+
+.nav-switch:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+/* ---------- Start page ---------- */
+.customise-intro {
+    color: #565e6e;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.customise-note {
+    color: #565e6e;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.start-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.start-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 60px;
+    padding: 0 0.9rem;
+    font: inherit;
+    text-align: left;
+    color: var(--text-main);
+    background: #ffffff;
+    border: 1px solid rgba(61, 42, 92, 0.2);
+    border-radius: 14px;
+    cursor: pointer;
+}
+
+.start-option[aria-checked="true"] {
+    border: 2px solid var(--card-ink);
+}
+
+.start-option .nav-row-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.start-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.start-text strong {
+    font-size: 1rem;
+}
+
+.start-text small {
+    color: #565e6e;
+    font-size: 0.8rem;
+}
+
+.start-ring {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--card-ink);
+    border-radius: 50%;
+}
+
+.start-option[aria-checked="true"] .start-ring::after {
+    content: '';
+    width: 11px;
+    height: 11px;
+    background: var(--card-ink);
+    border-radius: 50%;
+}
+
+/* ---------- Save and reset ---------- */
+.customise-message {
+    min-height: 1.2em;
+    color: #565e6e;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.customise-message.is-error {
+    color: var(--negative);
+    font-weight: 600;
+}
+
+.customise-message.is-ok {
+    color: var(--positive);
+    font-weight: 600;
+}
+
+.customise-actions {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.customise-save {
+    flex: 1;
+    min-height: 48px;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--card-ink);
+    background: var(--primary-color);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+.customise-save:disabled {
+    color: #a99bbd;
+    background: #ece4f3;
+    cursor: not-allowed;
+}
+
+.customise-reset {
+    min-height: 48px;
+    padding: 0 1rem;
+    font: inherit;
+    font-weight: 700;
+    color: var(--card-ink);
+    background: transparent;
+    border: 2px solid var(--card-ink);
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-switch::after { transition: none; }
+}
+
+.customise-group[hidden] { display: none; }

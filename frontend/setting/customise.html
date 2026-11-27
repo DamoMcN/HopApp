@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hop App - Customise app</title>
+    <link rel="stylesheet" href="../shared/css/main.css">
+    <link rel="stylesheet" href="../shared/css/navbar.css">
+    <link rel="stylesheet" href="customise.css?v=20261127-customise">
+</head>
+<body class="app-page has-bottom-nav">
+    <header class="app-header">
+        <a class="menu-btn" href="setting.html" aria-label="Back to Settings">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M19 12H5M11 6l-6 6 6 6"/>
+            </svg>
+        </a>
+        <h1>Customise app</h1>
+    </header>
+
+    <main class="customise-page">
+        <div class="customise-tabs" role="tablist" aria-label="Customise">
+            <button type="button" role="tab" class="customise-tab" id="tab-bar" aria-controls="panel-bar"
+                    aria-selected="true">Navigation bar</button>
+            <button type="button" role="tab" class="customise-tab" id="tab-start" aria-controls="panel-start"
+                    aria-selected="false" tabindex="-1">Start page</button>
+        </div>
+
+        <div id="panel-bar" role="tabpanel" aria-labelledby="tab-bar">
+            <section class="customise-card" aria-labelledby="preview-title">
+                <h2 id="preview-title" class="customise-label">Preview</h2>
+                <div class="nav-preview" id="preview"></div>
+            </section>
+
+            <section class="customise-group" aria-labelledby="in-title">
+                <h2 id="in-title" class="customise-label"></h2>
+                <ul class="nav-rows" id="in-list"></ul>
+            </section>
+
+            <section class="customise-group" aria-labelledby="out-title" id="out-group">
+                <h2 id="out-title" class="customise-label">Not in your bar</h2>
+                <ul class="nav-rows" id="out-list"></ul>
+            </section>
+        </div>
+
+        <div id="panel-start" role="tabpanel" aria-labelledby="tab-start" hidden>
+            <p class="customise-intro">Pick the page that opens when the app starts or when you sign in.</p>
+            <div class="start-list" id="start-list" role="radiogroup" aria-label="Start page"></div>
+            <p class="customise-note">You can pick a page that isn&rsquo;t in your bar. It will still open first.</p>
+        </div>
+
+        <p class="customise-message" id="customise-message" role="status" aria-live="polite"></p>
+
+        <div class="customise-actions">
+            <button type="button" class="customise-save" id="save" disabled>Save changes</button>
+            <button type="button" class="customise-reset" id="reset">Reset</button>
+        </div>
+    </main>
+
+    <script src="../shared/js/navbar.js"></script>
+    <script src="customise.js"></script>
+</body>
+</html>
