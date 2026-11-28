@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hop App - Settings</title>
     <link rel="stylesheet" href="../shared/css/main.css">
-    <link rel="stylesheet" href="setting.css?v=20261127-customise">
+    <link rel="stylesheet" href="setting.css?v=20261128-pencils">
 </head>
 <body class="app-page">
     <header class="app-header">
@@ -33,12 +33,114 @@
         <section class="settings-panel" aria-labelledby="profile-heading">
             <h2 id="profile-heading">User profile</h2>
             <p class="settings-intro">Your account details.</p>
+            <!-- The pencil next to a detail opens a small form under it (frontend/setting/account.js, backend/auth/account.php) -->
             <dl class="profile-details">
-                <div><dt>Name</dt><dd id="profile-name">Loading…</dd></div>
-                <div><dt>Email</dt><dd><a id="profile-email" href="#">Loading…</a></dd></div>
-                <div><dt>Card type</dt><dd><a id="profile-card-type" href="../card/card.html">Loading…</a></dd></div>
+                <div class="profile-row">
+                    <dt>Name</dt>
+                    <dd class="profile-value">
+                        <span id="profile-name">Loading…</span>
+                        <button type="button" class="edit-btn" id="edit-name" aria-label="Edit name"
+                                aria-expanded="false" aria-controls="name-form">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                                <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                            </svg>
+                        </button>
+                    </dd>
+                    <dd class="profile-edit">
+                        <form id="name-form" class="account-form" novalidate hidden>
+                            <label class="settings-field" for="first-name">First name</label>
+                            <input class="settings-input" id="first-name" name="first_name" autocomplete="given-name" maxlength="50" required>
+                            <label class="settings-field" for="last-name">Last name</label>
+                            <input class="settings-input" id="last-name" name="last_name" autocomplete="family-name" maxlength="50" required>
+                            <div class="form-actions">
+                                <button class="settings-button primary" type="submit">Save name</button>
+                                <button class="settings-button" type="button" data-cancel>Cancel</button>
+                            </div>
+                            <p class="settings-message" id="name-message" role="status" aria-live="polite"></p>
+                        </form>
+                    </dd>
+                </div>
+
+                <div class="profile-row">
+                    <dt>Email</dt>
+                    <dd class="profile-value">
+                        <a id="profile-email" href="#">Loading…</a>
+                        <button type="button" class="edit-btn" id="edit-email" aria-label="Edit email"
+                                aria-expanded="false" aria-controls="email-form">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                                <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                            </svg>
+                        </button>
+                    </dd>
+                    <dd class="profile-edit">
+                        <form id="email-form" class="account-form" novalidate hidden>
+                            <label class="settings-field" for="new-email">New email</label>
+                            <input class="settings-input" id="new-email" name="new_email" type="email" autocomplete="email" maxlength="255" required>
+                            <label class="settings-field" for="email-current-password">Current password</label>
+                            <input class="settings-input" id="email-current-password" name="current_password" type="password" autocomplete="current-password" required>
+                            <p class="settings-help">You'll log in with the new email from now on.</p>
+                            <div class="form-actions">
+                                <button class="settings-button primary" type="submit">Save email</button>
+                                <button class="settings-button" type="button" data-cancel>Cancel</button>
+                            </div>
+                            <p class="settings-message" id="email-message" role="status" aria-live="polite"></p>
+                        </form>
+                    </dd>
+                </div>
+
+                <div class="profile-row">
+                    <dt>Phone</dt>
+                    <dd class="profile-value">
+                        <span id="profile-phone">Loading…</span>
+                        <button type="button" class="edit-btn" id="edit-phone" aria-label="Edit phone number"
+                                aria-expanded="false" aria-controls="phone-form">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                                <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                            </svg>
+                        </button>
+                    </dd>
+                    <dd class="profile-edit">
+                        <form id="phone-form" class="account-form" novalidate hidden>
+                            <label class="settings-field" for="new-phone">New phone number</label>
+                            <input class="settings-input" id="new-phone" name="new_phone" type="tel" autocomplete="tel"
+                                   maxlength="20" placeholder="e.g. +353 87 123 4567" required>
+                            <div class="form-actions">
+                                <button class="settings-button primary" type="submit">Save phone number</button>
+                                <button class="settings-button" type="button" data-cancel>Cancel</button>
+                            </div>
+                            <p class="settings-message" id="phone-message" role="status" aria-live="polite"></p>
+                        </form>
+                    </dd>
+                </div>
+
+                <div class="profile-row">
+                    <dt>Card type</dt>
+                    <dd class="profile-value"><a id="profile-card-type" href="../card/card.html">Loading…</a></dd>
+                </div>
             </dl>
-            <p class="settings-help">To change your name or email, contact Help &amp; Support.</p>
+            <p class="settings-message" id="profile-message" role="status" aria-live="polite"></p>
+
+            <details class="account-edit" id="change-password">
+                <summary id="change-password-toggle">Change password</summary>
+                <form id="password-form" class="account-form" novalidate>
+                    <label class="settings-field" for="current-password">Current password</label>
+                    <input class="settings-input" id="current-password" name="current_password" type="password" autocomplete="current-password" required>
+                    <label class="settings-field" for="new-password">New password</label>
+                    <input class="settings-input" id="new-password" name="new_password" type="password" autocomplete="new-password" maxlength="72" aria-describedby="password-rules" required>
+                    <p class="settings-help" id="password-rules">At least 8 characters, with a digit, an uppercase letter, a lowercase letter and a symbol.</p>
+                    <label class="settings-field" for="confirm-password">Confirm new password</label>
+                    <input class="settings-input" id="confirm-password" name="confirm_password" type="password" autocomplete="new-password" maxlength="72" required>
+                    <label class="auto-topup-option show-passwords">
+                        <input type="checkbox" id="show-passwords">
+                        <span>Show passwords</span>
+                    </label>
+                    <button class="settings-button" type="submit">Save password</button>
+                    <p class="settings-message" id="password-message" role="status" aria-live="polite"></p>
+                </form>
+            </details>
         </section>
 
         <section class="settings-panel" aria-labelledby="customise-heading">
@@ -76,6 +178,7 @@
 
     <script src="../shared/js/menu.js?v=20261122-accessible-nav"></script>
     <script src="setting.js?v=20261112-profile-links"></script>
-    <script src="settings-search.js"></script>
+    <script src="account.js?v=20261128-pencils"></script>
+    <script src="settings-search.js?v=20261128-pencils"></script>
 </body>
 </html>

@@ -15,7 +15,11 @@
         { title: 'Name',                     section: 'User profile',  target: 'profile-name',       keywords: 'account details my name' },
         { title: 'Email',                    section: 'User profile',  target: 'profile-email',      keywords: 'account details e-mail address' },
         { title: 'Card type',                section: 'User profile',  target: 'profile-card-type',  keywords: 'adult student child young adult fare' },
-        { title: 'Change name or email',     section: 'Help & Support', href: '../support/support.html', keywords: 'edit update account details contact' },
+        { title: 'Phone number',             section: 'User profile',  target: 'profile-phone',      keywords: 'account details mobile telephone number' },
+        { title: 'Change name',              section: 'User profile',  target: 'edit-name', press: true, keywords: 'edit update rename first last surname account details pencil' },
+        { title: 'Change email',             section: 'User profile',  target: 'edit-email', press: true, keywords: 'edit update new e-mail address login account details pencil' },
+        { title: 'Change phone number',      section: 'User profile',  target: 'edit-phone', press: true, keywords: 'edit update new mobile telephone account details pencil' },
+        { title: 'Change password',          section: 'User profile',  target: 'change-password-toggle', keywords: 'edit update new reset login security account' },
         { title: 'Freeze or unfreeze card',  section: 'Card settings', target: 'card-status-button', keywords: 'card status lock block pause' },
         { title: 'Report a lost or stolen card', section: 'My Card',   href: '../card/card.html',    keywords: 'lost stolen report block' },
         { title: 'Automatic top up',         section: 'Top-up',        target: 'auto-topup-enabled', keywords: 'auto topup turn on off balance low' },
@@ -50,11 +54,19 @@
         }
         const el = document.getElementById(setting.target);
         if (!el) return;
+        // Change name / email / password sit in a fold-out section: open it
+        const fold = el.closest('details');
+        if (fold) fold.open = true;
         const panel = el.closest('.settings-panel') || el;
         panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
         panel.classList.remove('search-highlight');
         void panel.offsetWidth;   // restart the flash if it is already running
         panel.classList.add('search-highlight');
+        // A pencil button: press it, which opens its form and puts the cursor in it
+        if (setting.press) {
+            if (el.getAttribute('aria-expanded') !== 'true') el.click();
+            return;
+        }
         // A disabled control (e.g. no saved cards yet) can't take focus, so focus its panel instead
         if (el.disabled) {
             panel.setAttribute('tabindex', '-1');

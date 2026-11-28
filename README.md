@@ -294,6 +294,7 @@ flowchart LR
 | ✅ | Freeze, unfreeze, report lost or stolen | `frontend/card/`, `card_status.php` |
 | ✅ | Top up with a circular dial, saved demo cards, demo wallet | `frontend/topup/` |
 | ✅ | Help and Support with searchable FAQ | `frontend/support/` |
+| ✅ | Change your name, email or password in Settings (email and password need the current password) | `frontend/setting/account.js`, `backend/auth/account.php` |
 | ✅ | Bus map with region and route picker | `frontend/map/` |
 | ✅ | Buy a ticket journey planner (From, To, choose a bus) | `frontend/map/`, `frontend/tickets/` |
 | ✅ | Live bus positions | `backend/live/` |
