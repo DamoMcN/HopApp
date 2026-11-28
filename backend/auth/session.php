@@ -34,7 +34,7 @@ try {
 // Read fresh values from the database so the balance is always current
 try {
     $stmt = $pdo->prepare(
-        'SELECT user_id, f_name, l_name, email, card_type, card_number, card_status, card_expiry, wallet_balance
+        'SELECT user_id, f_name, l_name, email, phone_number, card_type, card_number, card_status, card_expiry, wallet_balance
          FROM users WHERE email = ?'
     );
     $stmt->execute([$_SESSION['email']]);
@@ -58,6 +58,8 @@ echo json_encode([
     'f_name'         => $row['f_name'],
     'l_name'         => $row['l_name'],
     'email'          => $row['email'],
+    // Only the last four digits ever leave the server (Settings shows "••• 4567")
+    'phone_last4'    => substr(preg_replace('/\D/', '', (string) $row['phone_number']), -4),
     'card_type'      => $row['card_type'],
     'card_number'    => $row['card_number'],
     'card_status'    => $row['card_status'],
